@@ -227,6 +227,19 @@ _describe_profile() {
             echo
             ;;
             
+        flutter)
+            echo "**Flutter Framework**"
+            echo
+            echo Use FLUTTER_SDK_VERSION environment variable before running claudebox to set use different flutter version
+            echo Ex: FLUTTER_SDK_VERSION=beta claudebox
+            echo
+            echo "Available commands:"
+            echo "- flutter - To manage flutter apps"
+            echo "- dart - To run dart cli tasks"
+            echo "- fvm - To manage flutter versions"
+            echo
+            ;;
+            
         c)
             echo "**C/C++ Advanced Development**"
             echo

@@ -164,7 +164,7 @@ _cmd_info() {
         echo -e "   Status:     ${YELLOW}No profiles installed${NC}"
     fi
 
-    echo -e "   Available:  ${CYAN}core${NC}, python, c, rust, go, javascript, java, ruby, php"
+    echo -e "   Available:  ${CYAN}core${NC}, python, c, rust, go, flutter, javascript, java, ruby, php"
     echo -e "               database, devops, web, ml, security, embedded, networking"
     echo -e "   ${CYAN}Hint:${NC} Run 'claudebox profile' for profile help "
     echo

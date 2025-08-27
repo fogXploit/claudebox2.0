@@ -211,6 +211,7 @@ claudebox profile rust go         # Rust + Go
 - **rust** - Rust Development (installed via rustup)
 - **python** - Python Development (managed via uv)
 - **go** - Go Development (installed from upstream archive)
+- **flutter** - Flutter Framework (installed using fvm, use FLUTTER_SDK_VERSION to set different version)
 - **javascript** - JavaScript/TypeScript (Node installed via nvm)
 - **java** - Java Development (OpenJDK 17, Maven, Gradle, Ant)
 - **ruby** - Ruby Development (gems, native deps, XML/YAML)
