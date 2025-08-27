@@ -265,6 +265,7 @@ RUN fvm install $flutter_version
 RUN fvm global $flutter_version
 ENV PATH="/home/claude/fvm/default/bin:$PATH"
 RUN flutter doctor
+USER root
 EOF
 }
 
