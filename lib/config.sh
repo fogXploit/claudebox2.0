@@ -261,8 +261,8 @@ get_profile_flutter() {
 USER claude
 RUN curl -fsSL https://fvm.app/install.sh | bash
 ENV PATH="/usr/local/bin:$PATH"
-RUN fvm install $flutter_version \
-    fvm global $flutter_version
+RUN fvm install $flutter_version
+RUN fvm global $flutter_version
 ENV PATH="/home/claude/fvm/default/bin:$PATH"
 RUN flutter doctor
 EOF
