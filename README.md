@@ -212,7 +212,7 @@ claudebox profile rust go         # Rust + Go
 - **python** - Python Development (managed via uv)
 - **go** - Go Development (installed from upstream archive)
 - **javascript** - JavaScript/TypeScript (Node installed via nvm)
-- **java** - Java Development (OpenJDK 17, Maven, Gradle, Ant)
+- **java** - Java Development (Latest LTS via SDKMan, Maven, Gradle, Ant)
 - **ruby** - Ruby Development (gems, native deps, XML/YAML)
 - **php** - PHP Development (PHP + extensions + Composer)
 
