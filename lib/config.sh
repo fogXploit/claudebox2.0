@@ -23,6 +23,7 @@ get_profile_packages() {
         rust) echo "" ;;  # Rust installed via rustup
         python) echo "" ;;  # Managed via uv
         go) echo "" ;;  # Installed from tarball
+        flutter) echo "" ;;  # Installed from source
         javascript) echo "" ;;  # Installed via nvm
         java) echo "" ;;  # Java installed via SDKMan, build tools in profile function
         ruby) echo "ruby-full ruby-dev libreadline-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev libxslt1-dev libcurl4-openssl-dev software-properties-common" ;;
@@ -49,6 +50,7 @@ get_profile_description() {
         rust) echo "Rust Development (installed via rustup)" ;;
         python) echo "Python Development (managed via uv)" ;;
         go) echo "Go Development (installed from upstream archive)" ;;
+        flutter) echo "Flutter Development (installed from fvm)" ;;
         javascript) echo "JavaScript/TypeScript (Node installed via nvm)" ;;
         java) echo "Java Development (latest LTS, Maven, Gradle, Ant via SDKMan)" ;;
         ruby) echo "Ruby Development (gems, native deps, XML/YAML)" ;;
@@ -65,7 +67,7 @@ get_profile_description() {
 }
 
 get_all_profile_names() {
-    echo "core build-tools shell networking c openwrt rust python go javascript java ruby php database devops web embedded datascience security ml"
+    echo "core build-tools shell networking c openwrt rust python go flutter javascript java ruby php database devops web embedded datascience security ml"
 }
 
 profile_exists() {
@@ -81,7 +83,7 @@ expand_profile() {
         c) echo "core build-tools c" ;;
         openwrt) echo "core build-tools openwrt" ;;
         ml) echo "core build-tools ml" ;;
-        rust|go|python|php|ruby|java|database|devops|web|embedded|datascience|security|javascript)
+        rust|go|flutter|python|php|ruby|java|database|devops|web|embedded|datascience|security|javascript)
             echo "core $1"
             ;;
         shell|networking|build-tools|core)
@@ -253,6 +255,20 @@ ENV PATH="/usr/local/go/bin:$PATH"
 EOF
 }
 
+get_profile_flutter() {
+    local flutter_version="${FLUTTER_SDK_VERSION:-stable}"
+    cat << EOF
+USER claude
+RUN curl -fsSL https://fvm.app/install.sh | bash
+ENV PATH="/usr/local/bin:$PATH"
+RUN fvm install $flutter_version
+RUN fvm global $flutter_version
+ENV PATH="/home/claude/fvm/default/bin:$PATH"
+RUN flutter doctor
+USER root
+EOF
+}
+
 get_profile_javascript() {
     cat << 'EOF'
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
@@ -352,6 +368,6 @@ get_profile_ml() {
 export -f _read_ini get_profile_packages get_profile_description get_all_profile_names profile_exists expand_profile
 export -f get_profile_file_path read_config_value read_profile_section update_profile_section get_current_profiles
 export -f get_profile_core get_profile_build_tools get_profile_shell get_profile_networking get_profile_c get_profile_openwrt
-export -f get_profile_rust get_profile_python get_profile_go get_profile_javascript get_profile_java get_profile_ruby
+export -f get_profile_rust get_profile_python get_profile_go get_profile_flutter get_profile_javascript get_profile_java get_profile_ruby
 export -f get_profile_php get_profile_database get_profile_devops get_profile_web get_profile_embedded get_profile_datascience
 export -f get_profile_security get_profile_ml
