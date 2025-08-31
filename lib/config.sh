@@ -24,7 +24,7 @@ get_profile_packages() {
         python) echo "" ;;  # Managed via uv
         go) echo "" ;;  # Installed from tarball
         javascript) echo "" ;;  # Installed via nvm
-        java) echo "openjdk-17-jdk maven gradle ant" ;;
+        java) echo "" ;;  # Java installed via SDKMan, build tools in profile function
         ruby) echo "ruby-full ruby-dev libreadline-dev libyaml-dev libsqlite3-dev sqlite3 libxml2-dev libxslt1-dev libcurl4-openssl-dev software-properties-common" ;;
         php) echo "php php-cli php-fpm php-mysql php-pgsql php-sqlite3 php-curl php-gd php-mbstring php-xml php-zip composer" ;;
         database) echo "postgresql-client mysql-client sqlite3 redis-tools mongodb-clients" ;;
@@ -50,7 +50,7 @@ get_profile_description() {
         python) echo "Python Development (managed via uv)" ;;
         go) echo "Go Development (installed from upstream archive)" ;;
         javascript) echo "JavaScript/TypeScript (Node installed via nvm)" ;;
-        java) echo "Java Development (OpenJDK 17, Maven, Gradle, Ant)" ;;
+        java) echo "Java Development (latest LTS, Maven, Gradle, Ant via SDKMan)" ;;
         ruby) echo "Ruby Development (gems, native deps, XML/YAML)" ;;
         php) echo "PHP Development (PHP + extensions + Composer)" ;;
         database) echo "Database Tools (clients for major databases)" ;;
@@ -265,10 +265,22 @@ EOF
 }
 
 get_profile_java() {
-    local packages=$(get_profile_packages "java")
-    if [[ -n "$packages" ]]; then
-        echo "RUN apt-get update && apt-get install -y $packages && apt-get clean"
-    fi
+    cat << 'EOF'
+USER claude
+RUN curl -s "https://get.sdkman.io?ci=true" | bash
+RUN bash -c "source $HOME/.sdkman/bin/sdkman-init.sh && sdk install java && sdk install maven && sdk install gradle && sdk install ant"
+USER root
+# Create symlinks for all Java tools in system PATH
+RUN for tool in java javac jar jshell; do \
+        ln -sf /home/claude/.sdkman/candidates/java/current/bin/$tool /usr/local/bin/$tool; \
+    done && \
+    ln -sf /home/claude/.sdkman/candidates/maven/current/bin/mvn /usr/local/bin/mvn && \
+    ln -sf /home/claude/.sdkman/candidates/gradle/current/bin/gradle /usr/local/bin/gradle && \
+    ln -sf /home/claude/.sdkman/candidates/ant/current/bin/ant /usr/local/bin/ant
+# Set JAVA_HOME environment variable
+ENV JAVA_HOME="/home/claude/.sdkman/candidates/java/current"
+ENV PATH="/home/claude/.sdkman/candidates/java/current/bin:$PATH"
+EOF
 }
 
 get_profile_ruby() {

@@ -249,10 +249,10 @@ _describe_profile() {
             echo "**Java Development Environment**"
             echo
             echo "Java development tools:"
-            echo "- OpenJDK 17 - Java Development Kit"
-            echo "- Maven - Build automation and dependency management"
-            echo "- Gradle - Build automation system"
-            echo "- Ant - Build tool"
+            echo "- Java - Latest JDK LTS installed via SDKMan"
+            echo "- Maven - Build automation and dependency management (via SDKMan)"
+            echo "- Gradle - Build automation system (via SDKMan)"
+            echo "- Ant - Build tool (via SDKMan)"
             echo
             ;;
             
