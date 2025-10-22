@@ -287,7 +287,11 @@ _cmd_remove() {
                 echo "$line"
             done < <(read_profile_section "$profile_file" "packages")
         fi
-    } > "${profile_file}.tmp" && mv "${profile_file}.tmp" "$profile_file"
+    } > "${profile_file}.tmp"
+
+    if [[ -f "${profile_file}.tmp" ]]; then
+        mv "${profile_file}.tmp" "$profile_file"
+    fi
 
     cecho "Profile: $PROJECT_DIR" "$CYAN"
     cecho "Removed profiles: ${to_remove[*]}" "$PURPLE"

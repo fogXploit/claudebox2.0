@@ -931,7 +931,9 @@ _install_tmux_conf() {
         if [[ -n "${TMUX:-}" ]]; then
             echo
             info "Reloading tmux configuration..."
-            tmux source-file "$user_tmux_conf" && success "✓ Configuration reloaded"
+            if tmux source-file "$user_tmux_conf"; then
+                success "✓ Configuration reloaded"
+            fi
         fi
     else
         error "Failed to install tmux configuration"

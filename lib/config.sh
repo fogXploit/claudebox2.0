@@ -173,7 +173,11 @@ update_profile_section() {
             echo "$item"
         done
         echo ""
-    } > "${profile_file}.tmp" && mv "${profile_file}.tmp" "$profile_file"
+    } > "${profile_file}.tmp"
+
+    if [[ -f "${profile_file}.tmp" ]]; then
+        mv "${profile_file}.tmp" "$profile_file"
+    fi
 }
 
 get_current_profiles() {

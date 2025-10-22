@@ -40,13 +40,19 @@ logo() {
         o="" c=""
         for ((i=0;i<${#l};i++)); do
             ch="${l:$i:1}"
-            [ "$ch" = " " ] && { o+="$ch"; continue; }
+            if [ "$ch" = " " ]; then
+                o+="$ch"
+                continue
+            fi
             cc=$(printf '%d' "'$ch" 2>/dev/null||echo 0)
             if [ $cc -ge 32 ] && [ $cc -le 126 ]; then n='\033[33m'      # Yellow for regular text
             elif [ $cc -ge 9552 ] && [ $cc -le 9580 ]; then n='\033[34m'  # Blue for box drawing
             elif [ $cc -eq 9608 ]; then n='\033[31m'                      # Red for block chars
             else n='\033[37m'; fi                                          # White for others
-            [ "$n" != "$c" ] && { o+="$n"; c="$n"; }
+            if [ "$n" != "$c" ]; then
+                o+="$n"
+                c="$n"
+            fi
             o+="$ch"
         done
         printf "${o}\033[0m\n"
@@ -66,14 +72,20 @@ logo_header() {
         o="" c=""
         for ((i=0;i<${#l};i++)); do
             ch="${l:$i:1}"
-            [ "$ch" = " " ] && { o+="$ch"; continue; }
+            if [ "$ch" = " " ]; then
+                o+="$ch"
+                continue
+            fi
             cc=$(printf '%d' "'$ch" 2>/dev/null||echo 0)
             if [ $cc -ge 32 ] && [ $cc -le 126 ] && [ "$ch" != "•" ]; then n='\033[33m'      # Yellow for regular text
             elif [ $cc -ge 9552 ] && [ $cc -le 9580 ]; then n='\033[34m'  # Blue for box drawing
             elif [ $cc -eq 9608 ] || [ $cc -ge 9600 ] && [ $cc -le 9631 ]; then n='\033[31m'  # Red for block chars (CLAUDEBOX)
             elif [ "$ch" = "•" ]; then n='\033[32m'                       # Green for bullets
             else n='\033[33m'; fi                                          # Yellow for others
-            [ "$n" != "$c" ] && { o+="$n"; c="$n"; }
+            if [ "$n" != "$c" ]; then
+                o+="$n"
+                c="$n"
+            fi
             o+="$ch"
         done
         printf "${o}\033[0m\n"
