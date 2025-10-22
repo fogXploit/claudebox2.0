@@ -261,15 +261,22 @@ run_claudebox_container() {
         exit 1
     fi
     
+    # Initialize variables first
+    local user_mcp_file=""
+    local project_mcp_file=""
+
+    # Track all temporary MCP files for cleanup
+    declare -a mcp_temp_files=()
+
     # Helper function to create and merge MCP config files
     create_mcp_config_file() {
         local config_file="$1"
         local temp_file="$2"
-        
+
         # Create temporary file with unique name
         local mcp_file=$(mktemp /tmp/claudebox-mcp-$(date +%s)-$$.json 2>/dev/null || mktemp)
         mcp_temp_files+=("$mcp_file")
-        
+
         # Extract mcpServers if they exist
         if [[ -f "$config_file" ]] && jq -e '.mcpServers' "$config_file" >/dev/null 2>&1; then
             if [[ -f "$temp_file" ]]; then
@@ -286,12 +293,6 @@ run_claudebox_container() {
             printf ""
         fi
     }
-    
-    local user_mcp_file=""
-    local project_mcp_file=""
-    
-    # Track all temporary MCP files for cleanup
-    declare -a mcp_temp_files=()
     
     # Set up cleanup trap for temporary MCP config files
     cleanup_mcp_files() {
@@ -405,9 +406,13 @@ run_claudebox_container() {
     if [[ "$VERBOSE" == "true" ]]; then
         echo "[DEBUG] Docker run command: docker run ${docker_args[*]}" >&2
     fi
+
+    # Clear screen before launching container
+    clear
+
     docker run "${docker_args[@]}"
     local exit_code=$?
-    
+
     return $exit_code
 }
 

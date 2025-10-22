@@ -600,8 +600,11 @@ LABEL claudebox.project=\"$project_folder_name\""
     ' <<<"$base_dockerfile") || error "Failed to apply Dockerfile substitutions"
 
     # Guard: ensure no unreplaced placeholders remain
-    if grep -q '{{PROFILE_INSTALLATIONS}}' <<<"$final_dockerfile" grep -q '{{LABELS}}' <<<"$final_dockerfile"; then
-    error "Unreplaced placeholders remain in generated Dockerfile"
+    if grep -q '{{PROFILE_INSTALLATIONS}}' <<<"$final_dockerfile"; then
+        error "Unreplaced placeholders remain in generated Dockerfile"
+    fi
+    if grep -q '{{LABELS}}' <<<"$final_dockerfile"; then
+        error "Unreplaced placeholders remain in generated Dockerfile"
     fi
 
     printf '%s' "$final_dockerfile" > "$dockerfile"

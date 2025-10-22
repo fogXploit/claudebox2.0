@@ -2,7 +2,7 @@
 
 [![Docker](https://img.shields.io/badge/Docker-Required-blue.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![GitHub](https://img.shields.io/badge/GitHub-RchGrav%2Fclaudebox-blue.svg)](https://github.com/RchGrav/claudebox)
+[![GitHub](https://img.shields.io/badge/GitHub-fogXploit%2Fclaudebox2.0-blue.svg)](https://github.com/fogXploit/claudebox2.0)
 
 The Ultimate Claude Code Docker Development Environment - Run Claude AI's coding assistant in a fully containerized, reproducible environment with pre-configured development profiles and MCP servers.
 
@@ -65,7 +65,7 @@ The self-extracting installer is ideal for automated setups and quick installati
 
 ```bash
 # Download the latest release
-wget https://github.com/RchGrav/claudebox/releases/latest/download/claudebox.run
+wget https://github.com/fogXploit/claudebox2.0/releases/latest/download/claudebox.run
 chmod +x claudebox.run
 ./claudebox.run
 ```
@@ -81,7 +81,7 @@ For manual installation or custom locations, use the archive:
 
 ```bash
 # Download the archive
-wget https://github.com/RchGrav/claudebox/releases/latest/download/claudebox-2.0.0.tar.gz
+wget https://github.com/fogXploit/claudebox2.0/releases/latest/download/claudebox-2.0.0.tar.gz
 
 # Extract to your preferred location
 mkdir -p ~/my-tools/claudebox
@@ -100,8 +100,8 @@ ln -s ~/my-tools/claudebox/main.sh ~/.local/bin/claudebox
 For development or testing the latest changes:
 ```bash
 # Clone the repository
-git clone https://github.com/RchGrav/claudebox.git
-cd claudebox
+git clone https://github.com/fogXploit/claudebox2.0.git
+cd claudebox2.0
 
 # Build the installer
 bash .builder/build.sh
@@ -474,5 +474,7 @@ Made with ❤️ for developers who love clean, reproducible environments
 
 ## Contact
 
-**Author/Maintainer:** RchGrav  
-**GitHub:** [@RchGrav](https://github.com/RchGrav)
+**Original Author:** RchGrav ([@RchGrav](https://github.com/RchGrav))
+**Current Maintainer:** fogXploit
+**GitHub:** [@fogXploit](https://github.com/fogXploit)
+**Original Repository:** [RchGrav/claudebox](https://github.com/RchGrav/claudebox) (no longer maintained)

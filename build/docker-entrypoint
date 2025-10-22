@@ -138,7 +138,7 @@ if [ -n "${CLAUDEBOX_PROJECT_NAME:-}" ]; then
         if [ -f "$CONFIG_FILE" ] && grep -qE 'python|ml|datascience' "$CONFIG_FILE"; then
             if [ ! -f "$PYDEV_FLAG" ] && [ -f "$VENV_FLAG" ] && [ -d "$VENV_DIR" ]; then
                 # Deploy Python dev tools based on profile
-                local python_packages=""
+                python_packages=""
                 
                 # Base Python profile packages
                 if grep -q 'python' "$CONFIG_FILE"; then
