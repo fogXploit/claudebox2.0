@@ -207,7 +207,7 @@ main() {
             --build-arg USERNAME="$DOCKER_USER" \
             --build-arg NODE_VERSION="$NODE_VERSION" \
             --build-arg DELTA_VERSION="$DELTA_VERSION" \
-            -f "$core_dockerfile" -t "$core_image" "$build_context" || error "Failed to build core image"
+            -f "$core_dockerfile" -t "$core_image" "$build_context" || docker_build_error
             
             
         # Check if this is truly a first-time setup (no projects exist)

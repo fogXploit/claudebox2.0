@@ -197,7 +197,7 @@ show_claude_help() {
         echo
         echo "$processed_help"
     else
-        error "No Docker image found for this project. Run 'claudebox' first to build the image."
+        no_image_error "$PROJECT_DIR"
     fi
 }
 

@@ -66,7 +66,7 @@ _cmd_shell() {
     
     # Check if image exists
     if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        error "No Docker image found for this project.\nRun 'claudebox' first to build the image."
+        no_image_error "$PROJECT_DIR"
     fi
     
     local persist_mode=false
@@ -223,7 +223,7 @@ _cmd_update() {
     
     # Check if image exists first
     if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        error "No Docker image found for this project folder: $PROJECT_DIR\nRun 'claudebox' first to build the image, or cd to your project directory."
+        no_image_error "$PROJECT_DIR"
     fi
     
     # Continue with normal update flow

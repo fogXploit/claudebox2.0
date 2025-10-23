@@ -453,7 +453,7 @@ run_docker_build() {
         --build-arg NODE_VERSION="$NODE_VERSION" \
         --build-arg DELTA_VERSION="$DELTA_VERSION" \
         --build-arg REBUILD_TIMESTAMP="${CLAUDEBOX_REBUILD_TIMESTAMP:-}" \
-        -f "$1" -t "$IMAGE_NAME" "$2" || error "Docker build failed"
+        -f "$1" -t "$IMAGE_NAME" "$2" || docker_build_error
 }
 
 export -f check_docker install_docker configure_docker_nonroot docker_exec_root docker_exec_user run_claudebox_container check_container_exists run_docker_build

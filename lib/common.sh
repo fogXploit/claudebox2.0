@@ -19,6 +19,63 @@ warn() { cecho "$1" "$YELLOW"; }
 info() { cecho "$1" "$BLUE"; }
 success() { cecho "$1" "$GREEN"; }
 
+# Enhanced error for Docker build failures with actionable guidance
+docker_build_error() {
+    cecho "Docker build failed" "$RED" >&2
+    echo >&2
+    cecho "Common causes and solutions:" "$YELLOW" >&2
+    echo >&2
+    printf "%s\n" "  ${CYAN}1. Out of disk space${NC}" >&2
+    printf "%s\n" "     Try: ${WHITE}docker system prune -a${NC} (removes unused images)" >&2
+    printf "%s\n" "     Or:  ${WHITE}df -h${NC} (check available space)" >&2
+    echo >&2
+    printf "%s\n" "  ${CYAN}2. Network issues${NC}" >&2
+    printf "%s\n" "     Try: ${WHITE}ping -c 3 8.8.8.8${NC} (test connectivity)" >&2
+    printf "%s\n" "     Or:  Wait a moment and retry" >&2
+    echo >&2
+    printf "%s\n" "  ${CYAN}3. BuildKit cache corruption${NC}" >&2
+    printf "%s\n" "     Try: ${WHITE}claudebox clean --cache${NC}" >&2
+    printf "%s\n" "     Then: ${WHITE}claudebox rebuild${NC}" >&2
+    echo >&2
+    printf "%s\n" "  ${CYAN}4. Docker daemon issues${NC}" >&2
+    printf "%s\n" "     Try: ${WHITE}docker info${NC} (check Docker status)" >&2
+    printf "%s\n" "     Or:  Restart Docker Desktop" >&2
+    echo >&2
+    exit 1
+}
+
+# Enhanced error for missing Docker image
+no_image_error() {
+    local project_dir="${1:-unknown}"
+    cecho "No Docker image found for this project" "$RED" >&2
+    echo >&2
+    cecho "To build the image:" "$YELLOW" >&2
+    echo >&2
+    printf "%s\n" "  ${WHITE}cd $project_dir${NC}" >&2
+    printf "%s\n" "  ${WHITE}claudebox${NC}" >&2
+    echo >&2
+    cecho "Or if you're already in the project directory:" "$YELLOW" >&2
+    printf "%s\n" "  ${WHITE}claudebox${NC}" >&2
+    echo >&2
+    printf "%s\n" "${DIM}The first build may take a few minutes to download packages.${NC}" >&2
+    echo >&2
+    exit 1
+}
+
+# Enhanced error for slot not found
+slot_not_found_error() {
+    local slot_num="$1"
+    cecho "Slot $slot_num does not exist" "$RED" >&2
+    echo >&2
+    cecho "To see available slots:" "$YELLOW" >&2
+    printf "%s\n" "  ${WHITE}claudebox slots${NC}" >&2
+    echo >&2
+    cecho "To create a new slot:" "$YELLOW" >&2
+    printf "%s\n" "  ${WHITE}claudebox create${NC}" >&2
+    echo >&2
+    exit 1
+}
+
 # -------- logo functions ------------------------------------------------------
 logo() {
     local cb='

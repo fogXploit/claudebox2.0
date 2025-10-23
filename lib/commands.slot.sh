@@ -51,7 +51,7 @@ _cmd_slot() {
     
     # Check if slot exists
     if [[ ! -d "$slot_dir" ]]; then
-        error "Slot $slot_num does not exist. Run 'claudebox slots' to see available slots."
+        slot_not_found_error "$slot_num"
     fi
     
     # Set up environment for this specific slot

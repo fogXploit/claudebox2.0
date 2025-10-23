@@ -743,7 +743,7 @@ _cmd_special() {
     
     # Check if image exists first (for non-update commands)
     if [[ "$cmd" != "update" ]] && ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        error "No Docker image found for this project folder: $PROJECT_DIR\nRun 'claudebox' first to build the image, or cd to your project directory."
+        no_image_error "$PROJECT_DIR"
     fi
     
     # Create temporary container
