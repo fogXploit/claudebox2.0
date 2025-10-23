@@ -133,9 +133,13 @@ This is not about style preference - shortcuts with `set -e` WILL break the scri
    - 🔄 TODO: Tests for multi-slot management
    - 🔄 TODO: Tests for rebuild detection logic
 
-4. **Error Messages & Debugging** - Improve user experience
-   - Add actionable guidance to error messages
-   - Example: "Docker build failed" → "Docker build failed. Try: claudebox clean --cache && claudebox rebuild"
+4. ✅ **Error Messages & Debugging** - Improve user experience
+   - ✅ Added 3 enhanced error functions with actionable guidance
+   - ✅ docker_build_error() - 4 common causes with solutions
+   - ✅ no_image_error() - Build guidance with project context
+   - ✅ slot_not_found_error() - Slot management help
+   - ✅ Updated 7 files to use new error functions
+   - Benefits: Users can self-resolve common issues
 
 5. **Documentation Improvements**
    - Add CONTRIBUTING.md for contributors
