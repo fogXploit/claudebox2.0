@@ -19,6 +19,23 @@ cd tests
 ./test_cli_parsing.sh
 ```
 
+### test_container_operations.sh
+Integration tests for container lifecycle and slot management:
+- Project initialization and setup
+- Container name generation
+- Slot directory creation and management
+- Multi-slot scenarios (creating/deleting multiple slots)
+- Counter management
+- Parent folder and image name generation
+
+**Coverage:** 34 tests covering all container operation scenarios
+
+**Usage:**
+```bash
+cd tests
+./test_container_operations.sh
+```
+
 ### test_bash32_compat.sh
 A comprehensive test suite that verifies Bash 3.2 compatibility by checking:
 - All profile functions work correctly
@@ -43,9 +60,27 @@ cd tests
 ./test_in_bash32_docker.sh
 ```
 
+### run_all_tests.sh
+Convenience script that runs all test suites and provides a comprehensive summary.
+
+**Coverage:** Runs all 71 tests across 3 test suites
+
+**Features:**
+- Runs all tests in sequence
+- Displays output from each suite
+- Provides overall summary with total counts
+- Color-coded results for easy reading
+- Exit code 0 if all pass, 1 if any fail
+
+**Usage:**
+```bash
+cd tests
+./run_all_tests.sh
+```
+
 ## Test Coverage
 
-The test suite now includes **37 tests** covering:
+The test suite now includes **71 tests** covering:
 
 1. **CLI Parsing** (24 tests - test_cli_parsing.sh)
    - Command recognition (help, lint, shell, create, etc.)
@@ -54,19 +89,27 @@ The test suite now includes **37 tests** covering:
    - Command requirements detection
    - Edge cases and error handling
 
-2. **Profile Functions** (13 tests - test_bash32_compat.sh)
+2. **Container Operations** (34 tests - test_container_operations.sh)
+   - Project initialization and directory structure
+   - Container name generation and consistency
+   - Slot directory creation and deletion
+   - Multi-slot management (creating/deleting 5+ slots)
+   - Counter management and state tracking
+   - Parent folder and image name generation
+
+3. **Profile Functions** (13 tests - test_bash32_compat.sh)
    - `get_profile_packages()`
    - `get_profile_description()`
    - `get_all_profile_names()`
    - `profile_exists()`
 
-3. **Usage Patterns**
+4. **Usage Patterns**
    - Profile listing (as used in `claudebox profiles`)
    - Dockerfile generation patterns
    - Empty profile handling
    - Invalid profile handling
 
-4. **Bash 3.2 Compatibility**
+5. **Bash 3.2 Compatibility**
    - No associative arrays (`declare -A`)
    - No `${var^^}` uppercase expansion
    - No `[[ -v` variable checking
@@ -74,12 +117,18 @@ The test suite now includes **37 tests** covering:
 
 ## Expected Results
 
-All 37 tests should pass in both Bash 3.2 and modern Bash versions.
+All 71 tests should pass in both Bash 3.2 and modern Bash versions.
 
 **Quick test run:**
 ```bash
 cd tests
-./test_cli_parsing.sh && ./test_bash32_compat.sh
+./run_all_tests.sh
+```
+
+Or run individually:
+```bash
+cd tests
+./test_cli_parsing.sh && ./test_container_operations.sh && ./test_bash32_compat.sh
 ```
 
 ## macOS Testing

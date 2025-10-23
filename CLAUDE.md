@@ -141,10 +141,11 @@ This is not about style preference - shortcuts with `set -e` WILL break the scri
 **Medium Priority:**
 3. **Testing Coverage** - Expand test suite ✅ **IN PROGRESS**
    - ✅ Added CLI parsing tests (24 tests - test_cli_parsing.sh)
-   - ✅ Test coverage increased: 13 → 37 tests
-   - 🔄 TODO: Integration tests for container creation/deletion
+   - ✅ Added container operations tests (34 tests - test_container_operations.sh)
+   - ✅ Test coverage increased: 13 → 71 tests (447% increase)
+   - ✅ Integration tests for container creation/deletion
+   - ✅ Tests for multi-slot management
    - 🔄 TODO: Tests for profile installation
-   - 🔄 TODO: Tests for multi-slot management
    - 🔄 TODO: Tests for rebuild detection logic
 
 4. ✅ **Error Messages & Debugging** - Improve user experience
