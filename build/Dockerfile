@@ -91,7 +91,7 @@ RUN echo 'export NVM_DIR="$HOME/.nvm"' >> ~/.bashrc && \
 
 RUN bash -c "source $NVM_DIR/nvm.sh && \
     nvm use default && \
-    npm install -g @anthropic-ai/claude-code"
+    npm install -g @anthropic-ai/claude-code@latest"
 
 RUN cat >> ~/.zshrc <<'EOF'
 
