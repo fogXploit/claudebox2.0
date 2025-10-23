@@ -118,10 +118,11 @@ This is not about style preference - shortcuts with `set -e` WILL break the scri
    - ✅ Running shellcheck in CI/GitHub Actions
    - Benefits: Automatic detection of Bash 3.2 incompatibilities
 
-2. **Update .gitignore** - Clean up version control
-   - Add dist/, claudebox.run to ignore list
-   - Add .claude/settings.local.json, package*.json
-   - Quick win, prevents accidental commits
+2. ✅ **Update .gitignore** - Clean up version control
+   - ✅ Added Node/npm patterns (package.json, package-lock.json, node_modules/)
+   - ✅ Removed .claude/settings.local.json from tracking
+   - ✅ dist/, claudebox.run already ignored
+   - Benefits: Cleaner git status, prevents accidental commits
 
 **Medium Priority:**
 3. **Testing Coverage** - Expand test suite (currently only 2 test files for 6389 lines)
