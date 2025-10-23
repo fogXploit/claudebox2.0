@@ -5,6 +5,14 @@
 .claude/
 CLAUDE.md
 
+# Node/npm (for projects using npm packages)
+node_modules/
+package.json
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # Python
 __pycache__/
 *.py[cod]
