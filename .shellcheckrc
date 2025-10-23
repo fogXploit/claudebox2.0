@@ -1,0 +1,31 @@
+# ShellCheck configuration for ClaudeBox
+# Bash 3.2 compatibility required for macOS/Linux portability
+
+# Specify shell directive
+shell=bash
+
+# Disable specific warnings that are intentional design choices
+
+# SC1090: Can't follow non-constant source
+# We dynamically source library files
+disable=SC1090
+
+# SC1091: Not following sourced files
+# ShellCheck can't always find our sourced files
+disable=SC1091
+
+# SC2034: Variable appears unused
+# Many variables are used indirectly or in sourced files
+disable=SC2034
+
+# SC2155: Declare and assign separately to avoid masking return values
+# We use this pattern intentionally for readability in many places
+disable=SC2155
+
+# SC2086: Double quote to prevent globbing and word splitting
+# Sometimes we intentionally want word splitting
+# But generally we should quote - only disable where needed
+
+# SC2181: Check exit code directly instead of $?
+# Sometimes checking $? is clearer for complex commands
+disable=SC2181

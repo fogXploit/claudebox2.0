@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # System Commands - System-level operations and utilities
 # ============================================================================
-# Commands: save, unlink, rebuild, tmux, open
+# Commands: save, unlink, rebuild, tmux, open, lint
 # System utilities and special features
 
 
@@ -940,4 +940,85 @@ _install_tmux_conf() {
     fi
 }
 
-export -f _cmd_save _cmd_unlink _cmd_rebuild _cmd_tmux _cmd_project _cmd_special _cmd_import _install_tmux_conf _cmd_kill
+_cmd_lint() {
+    local target="${1:-.}"
+
+    if [[ ! -d "$SCRIPT_DIR" ]]; then
+        error "ClaudeBox directory not found"
+    fi
+
+    info "Running ShellCheck on ClaudeBox scripts..."
+    echo
+
+    local error_count=0
+    local file_count=0
+
+    # Find all shell scripts
+    local files=()
+    if [[ "$target" == "." ]] || [[ "$target" == "all" ]]; then
+        # Lint all ClaudeBox scripts
+        files+=("$SCRIPT_DIR/main.sh")
+        while IFS= read -r -d '' file; do
+            files+=("$file")
+        done < <(find "$SCRIPT_DIR/lib" -name "*.sh" -type f -print0 2>/dev/null)
+    elif [[ -f "$target" ]]; then
+        # Lint specific file
+        files+=("$target")
+    elif [[ -d "$target" ]]; then
+        # Lint directory
+        while IFS= read -r -d '' file; do
+            files+=("$file")
+        done < <(find "$target" -name "*.sh" -type f -print0 2>/dev/null)
+    else
+        error "Invalid target: $target"
+    fi
+
+    if [[ ${#files[@]} -eq 0 ]]; then
+        warn "No shell scripts found"
+        exit 1
+    fi
+
+    # Check if shellcheck is available
+    if ! command -v shellcheck >/dev/null 2>&1; then
+        error "ShellCheck is not installed.
+Please install ShellCheck:
+  Ubuntu/Debian: sudo apt-get install shellcheck
+  macOS: brew install shellcheck
+
+Or run inside ClaudeBox container:
+  claudebox shell
+  shellcheck main.sh lib/*.sh"
+    fi
+
+    # Run shellcheck on each file
+    for file in "${files[@]}"; do
+        local filename=$(basename "$file")
+        printf "Checking %s... " "$filename"
+
+        if shellcheck -x "$file" 2>&1 | grep -q "^In"; then
+            cecho "FAIL" "$RED"
+            shellcheck -x "$file"
+            echo
+            if [[ "$error_count" -eq 0 ]]; then
+                error_count=1
+            fi
+        else
+            cecho "OK" "$GREEN"
+        fi
+
+        if [[ "$file_count" -eq 0 ]]; then
+            file_count=1
+        fi
+    done
+
+    echo
+    if [[ "$error_count" -eq 0 ]]; then
+        success "All checks passed!"
+    else
+        error "Some checks failed. Please fix the issues above."
+    fi
+
+    exit "$error_count"
+}
+
+export -f _cmd_save _cmd_unlink _cmd_rebuild _cmd_tmux _cmd_project _cmd_special _cmd_import _install_tmux_conf _cmd_kill _cmd_lint

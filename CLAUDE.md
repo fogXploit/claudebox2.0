@@ -111,10 +111,11 @@ This is not about style preference - shortcuts with `set -e` WILL break the scri
 ### 🔄 Next Priority Improvements
 
 **High Priority:**
-1. **ShellCheck Integration** - Add automated linting to catch Bash compatibility issues
-   - Install shellcheck in core Docker image
-   - Add `claudebox lint` command or Makefile target
-   - Run shellcheck in CI/GitHub Actions
+1. ✅ **ShellCheck Integration** - Add automated linting to catch Bash compatibility issues
+   - ✅ Installed shellcheck in core Docker image
+   - ✅ Added `claudebox lint` command
+   - ✅ Added `.shellcheckrc` configuration file
+   - ✅ Running shellcheck in CI/GitHub Actions
    - Benefits: Automatic detection of Bash 3.2 incompatibilities
 
 2. **Update .gitignore** - Clean up version control
@@ -151,7 +152,33 @@ This is not about style preference - shortcuts with `set -e` WILL break the scri
 
 ## Common Development Commands
 
-When working on ClaudeBox, ensure Bash 3.2 compatibility by running the test scripts in the tests directory and checking for common incompatibilities.
+### Linting and Code Quality
+```bash
+# Run ShellCheck on all scripts (requires ShellCheck installed)
+claudebox lint
+
+# Run ShellCheck on specific file
+claudebox lint lib/docker.sh
+
+# Run ShellCheck on specific directory
+claudebox lint lib/
+
+# Run inside ClaudeBox container if ShellCheck not installed on host
+claudebox shell
+shellcheck -x main.sh lib/*.sh
+```
+
+### Testing
+```bash
+# Run Bash 3.2 compatibility tests
+cd tests
+bash test_bash32_compat.sh
+
+# Run Docker-based Bash 3.2 tests (Linux only)
+bash test_in_bash32_docker.sh
+```
+
+**ShellCheck Configuration:** The `.shellcheckrc` file disables warnings that are intentional design choices (e.g., SC1090 for dynamic sourcing, SC2155 for declare-and-assign pattern). When working on ClaudeBox, ensure Bash 3.2 compatibility by running the test scripts and lint command regularly.
 
 ## High-Level Architecture
 

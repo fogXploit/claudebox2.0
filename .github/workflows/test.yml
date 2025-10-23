@@ -38,14 +38,10 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y shellcheck
         
-    - name: Run ShellCheck on main script
-      run: shellcheck -x main.sh
-      
-    - name: Run ShellCheck on library files
-      run: shellcheck -x lib/*.sh
-      
-    - name: Run ShellCheck on command modules
-      run: shellcheck -x lib/commands/*.sh
+    - name: Run ShellCheck on all scripts
+      run: |
+        shellcheck -x main.sh
+        shellcheck -x lib/*.sh
       
   build:
     runs-on: ubuntu-latest
