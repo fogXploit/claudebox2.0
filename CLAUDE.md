@@ -90,9 +90,23 @@ fi
 
 This is not about style preference - shortcuts with `set -e` WILL break the script in subtle, hard-to-debug ways.
 
-## Recent Session Progress (2025-10-22)
+## Recent Session Progress
 
-### ✅ Completed Improvements
+### Session 2025-10-23
+
+**✅ Completed Improvements**
+
+1. **Fixed `claudebox clean docker` Infinite Loop**
+   - Root cause: `docker builder prune -af 2>/dev/null` only suppressed stderr, stdout was streaming continuously
+   - Fixed by redirecting both stdout and stderr: `>/dev/null 2>&1`
+   - Added informational message during build cache pruning for better UX
+   - Improved dangling image cleanup to check existence before removal
+   - Command now completes cleanly without endless output
+   - File: lib/commands.clean.sh:36-44
+
+### Session 2025-10-22
+
+**✅ Completed Improvements**
 
 1. **Critical Bug Fixes** (Commit: 733bbf3)
    - Fixed grep syntax error in main.sh causing build failures

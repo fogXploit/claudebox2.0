@@ -34,10 +34,14 @@ _cmd_clean() {
             fi
 
             # Remove dangling images
-            docker images -f "dangling=true" -q | xargs -r docker rmi -f 2>/dev/null || true
+            local dangling=$(docker images -f "dangling=true" -q 2>/dev/null)
+            if [[ -n "$dangling" ]]; then
+                echo "$dangling" | xargs -r docker rmi -f 2>/dev/null || true
+            fi
 
-            # Prune build cache
-            docker builder prune -af 2>/dev/null || true
+            # Prune build cache (run once with --force to avoid prompt)
+            info "Pruning Docker build cache..."
+            docker builder prune --all --force >/dev/null 2>&1 || true
 
             # Remove volumes
             if [[ -n "$volumes" ]]; then
