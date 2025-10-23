@@ -294,6 +294,10 @@ run_claudebox_container() {
         fi
     }
     
+    # Initialize variables before cleanup trap
+    local user_mcp_file=""
+    local project_mcp_file=""
+
     # Set up cleanup trap for temporary MCP config files
     cleanup_mcp_files() {
         local file
@@ -310,7 +314,7 @@ run_claudebox_container() {
         fi
     }
     trap cleanup_mcp_files EXIT
-    
+
     # Create user MCP config file from ~/.claude.json
     if [[ -f "$HOME/.claude.json" ]]; then
         user_mcp_file=$(create_mcp_config_file "$HOME/.claude.json" "")
