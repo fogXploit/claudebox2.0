@@ -125,11 +125,13 @@ This is not about style preference - shortcuts with `set -e` WILL break the scri
    - Benefits: Cleaner git status, prevents accidental commits
 
 **Medium Priority:**
-3. **Testing Coverage** - Expand test suite (currently only 2 test files for 6389 lines)
-   - Add integration tests for container creation/deletion
-   - Add tests for profile installation
-   - Add tests for multi-slot management
-   - Add tests for rebuild detection logic
+3. **Testing Coverage** - Expand test suite ✅ **IN PROGRESS**
+   - ✅ Added CLI parsing tests (24 tests - test_cli_parsing.sh)
+   - ✅ Test coverage increased: 13 → 37 tests
+   - 🔄 TODO: Integration tests for container creation/deletion
+   - 🔄 TODO: Tests for profile installation
+   - 🔄 TODO: Tests for multi-slot management
+   - 🔄 TODO: Tests for rebuild detection logic
 
 4. **Error Messages & Debugging** - Improve user experience
    - Add actionable guidance to error messages
