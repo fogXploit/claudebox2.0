@@ -995,16 +995,21 @@ Or run inside ClaudeBox container:
         local filename=$(basename "$file")
         printf "Checking %s... " "$filename"
 
-        if shellcheck -x "$file" 2>&1 | grep -q "^In"; then
+        # Run shellcheck and capture to temp file to avoid subshell issues with set -e
+        local temp_output
+        temp_output=$(mktemp)
+        shellcheck -x "$file" > "$temp_output" 2>&1 || true
+
+        if grep -q "^In" "$temp_output"; then
             cecho "FAIL" "$RED"
-            shellcheck -x "$file"
+            cat "$temp_output"
             echo
-            if [[ "$error_count" -eq 0 ]]; then
-                error_count=1
-            fi
+            error_count=1
         else
             cecho "OK" "$GREEN"
         fi
+
+        rm -f "$temp_output"
 
         if [[ "$file_count" -eq 0 ]]; then
             file_count=1
