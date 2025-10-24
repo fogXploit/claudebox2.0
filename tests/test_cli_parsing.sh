@@ -194,7 +194,17 @@ echo "-------------"
 # Test 19: Empty arguments
 test_empty_args() {
     parse_cli_args
-    [[ -z "$CLI_SCRIPT_COMMAND" ]] && [[ ${#CLI_PASS_THROUGH[@]} -eq 0 ]]
+    # Check that no command was set
+    [[ -z "$CLI_SCRIPT_COMMAND" ]] || return 1
+    # Check that pass-through is either empty or contains only empty elements
+    # This handles both ${array[@]} (length 0) and ${array[@]:-} (length 1 with empty string)
+    if [[ ${#CLI_PASS_THROUGH[@]} -eq 0 ]]; then
+        return 0
+    elif [[ ${#CLI_PASS_THROUGH[@]} -eq 1 ]] && [[ -z "${CLI_PASS_THROUGH[0]}" ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 run_test "Handle empty arguments" test_empty_args
 
