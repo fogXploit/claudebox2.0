@@ -4,6 +4,19 @@ All notable changes to ClaudeBox will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.0.1] - 2025-10-24
+
+### Fixed
+- **GitHub Actions CI/CD**: Complete overhaul of workflows for reliability
+  - Fixed installer filename mismatch (claudebox.run vs claudebox)
+  - Resolved ShellCheck warnings across entire codebase
+  - Upgraded deprecated actions from v3 to v4 (checkout, upload-artifact)
+  - Fixed installer test failures by moving CLAUDEBOX_INSTALLER_RUN check before symlink creation
+  - Fixed installer verification to check correct file paths (dist/claudebox.run)
+  - Updated test workflow to verify main.sh in development mode
+- **Installer Flow**: Installer now exits cleanly without prompting for Docker or creating symlinks
+- **Logo**: Updated to use 2.0 logo consistently across all outputs
+
 ## [2.0.0] - 2025-07-25
 
 ### Added
