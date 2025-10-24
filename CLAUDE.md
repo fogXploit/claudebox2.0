@@ -92,6 +92,25 @@ This is not about style preference - shortcuts with `set -e` WILL break the scri
 
 ## Recent Session Progress
 
+### Session 2025-10-24
+
+**✅ Completed Improvements**
+
+1. **PR #78 - Array Expansion Safety for macOS** (Commits: aa34204, b579004)
+   - Applied changes from RchGrav/claudebox#78 to fix unbound variable errors on macOS
+   - Added `${array[@]:-}` syntax to all array expansions (48 changes across 10 files)
+   - Fixed Test 19 to handle both array expansion styles (zero-length vs single empty element)
+   - Result: All 71 tests pass, macOS compatibility improved
+   - Files: lib/cli.sh, lib/commands.*.sh, lib/config.sh, lib/docker.sh, lib/tools-report.sh, main.sh, tooling/profiles/rust.sh
+
+2. **PR #73 - MCP Cleanup Trap Scoping Fix** (Commit: ffe5912)
+   - Fixed bash "unbound variable" errors on ClaudeBox exit with MCP servers configured
+   - Simplified cleanup_mcp_files() to only use mcp_temp_files array (accessible to EXIT trap)
+   - Added user_mcp_file to tracked files array for proper cleanup
+   - Removed problematic references to function-scoped variables in trap
+   - Result: Clean exits with proper resource cleanup, no more errors
+   - File: lib/docker.sh:301-365
+
 ### Session 2025-10-23
 
 **✅ Completed Improvements**
@@ -122,34 +141,38 @@ This is not about style preference - shortcuts with `set -e` WILL break the scri
    - Fixed logo display shortcuts in common.sh
    - All changes follow CLAUDE.md guidelines for set -euo pipefail safety
 
-### 🔄 Next Priority Improvements
+### 🔄 Next Priority Improvements - Implementing PRs from Original Repo
 
-**High Priority:**
-1. ✅ **ShellCheck Integration** - Add automated linting to catch Bash compatibility issues
-   - ✅ Installed shellcheck in core Docker image
-   - ✅ Added `claudebox lint` command
-   - ✅ Added `.shellcheckrc` configuration file
-   - ✅ Running shellcheck in CI/GitHub Actions
-   - Benefits: Automatic detection of Bash 3.2 incompatibilities
+**Completed PRs:**
+1. ✅ **PR #78** - Array expansion safety for macOS compatibility
+2. ✅ **PR #73** - MCP cleanup trap scoping fix
 
-2. ✅ **Update .gitignore** - Clean up version control
-   - ✅ Added Node/npm patterns (package.json, package-lock.json, node_modules/)
-   - ✅ Removed .claude/settings.local.json from tracking
-   - ✅ dist/, claudebox.run already ignored
-   - Benefits: Cleaner git status, prevents accidental commits
+**High Priority - Ready to Implement:**
+3. **PR #70** - Pass environment variables from .env file
+   - Single line change in lib/docker.sh
+   - Adds `--env-file` flag support for Docker containers
+   - Enables seamless environment configuration via .env files
 
-**Medium Priority:**
-3. **Testing Coverage** - Expand test suite ✅ **IN PROGRESS**
-   - ✅ Added CLI parsing tests (24 tests - test_cli_parsing.sh)
-   - ✅ Added container operations tests (34 tests - test_container_operations.sh)
-   - ✅ Test coverage increased: 13 → 71 tests (447% increase)
-   - ✅ Integration tests for container creation/deletion
-   - ✅ Tests for multi-slot management
-   - 🔄 TODO: Tests for profile installation
-   - 🔄 TODO: Tests for rebuild detection logic
+4. **PR #67** - Mount .gitconfig read-only
+   - Simple addition to lib/docker.sh
+   - Git operations use user's configured name/email/settings
+   - Maintains security with read-only mount
 
-4. ✅ **Error Messages & Debugging** - Improve user experience
-   - ✅ Added 3 enhanced error functions with actionable guidance
+5. **PR #74** - Fix Python profile error handling
+   - Modifies build/docker-entrypoint
+   - Fixes silent failures, broken venvs, Bash 3.2 compatibility
+   - Improves reliability significantly
+
+**Medium Priority - Consider:**
+6. **PR #69** - Flexible SSH directory mounting
+7. **PR #44** - Add support for Claude agents
+8. **PR #55** - Fix awk newline error with Java profile (verify if still needed)
+
+**Previously Completed:**
+- ✅ ShellCheck Integration
+- ✅ Update .gitignore
+- ✅ Testing Coverage (71 tests total)
+- ✅ Error Messages & Debugging
    - ✅ docker_build_error() - 4 common causes with solutions
    - ✅ no_image_error() - Build guidance with project context
    - ✅ slot_not_found_error() - Slot management help
@@ -166,11 +189,28 @@ This is not about style preference - shortcuts with `set -e` WILL break the scri
    - Reduce duplication in commands.system.sh (940 lines, likely has duplication)
    - Extract shared utilities from large files
 
-### 📝 Known Issues from Original Repository
+### 📝 Pull Requests from Original Repository
 
-- Review open pull requests from https://github.com/RchGrav/claudebox
-- Evaluate which PRs to implement in this fork
-- Original maintainer is no longer active
+**Status:** Reviewed all 11 open PRs from https://github.com/RchGrav/claudebox (original maintainer no longer active)
+
+**Implemented:**
+- ✅ PR #78 - Array expansion safety (macOS compatibility)
+- ✅ PR #73 - MCP cleanup trap scoping fix
+
+**Skipped (Superseded or Duplicate):**
+- ❌ PR #77 - Alternative unbound variable fix (superseded by PR #78)
+- ❌ PR #57 - Fix user_mcp_file unbound (superseded by PR #73)
+
+**Deferred (Needs Review):**
+- ⏸️ PR #42 - Uninstall script (has code quality concerns)
+- ⏸️ PR #55 - Java profile awk fix (needs verification if issue still exists)
+
+**Recommended Next:**
+- 🔜 PR #70 - .env file support (1 line change, high value)
+- 🔜 PR #67 - .gitconfig mount (simple, useful)
+- 🔜 PR #74 - Python profile fixes (reliability improvement)
+- 🔜 PR #69 - Flexible SSH mounting (nice-to-have)
+- 🔜 PR #44 - Claude agents support (if agents are used)
 
 ## Common Development Commands
 
