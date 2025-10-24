@@ -78,10 +78,35 @@ show_first_time_welcome() {
 main() {
     # Save original arguments for later use with saved flags
     local original_args=("$@")
-    
+
+    # Step 0: If running from installer, handle installation and exit early
+    # This must happen before any other operations (including symlink updates)
+    if [[ "${CLAUDEBOX_INSTALLER_RUN:-}" == "true" ]]; then
+        # Check if this is first install or update
+        if [[ -f "$HOME/.claudebox/.installed" ]]; then
+            # Update - just show brief message
+            logo_small
+            echo
+            cecho "ClaudeBox updated successfully!" "$GREEN"
+            echo
+            echo "Run 'claudebox' to start using ClaudeBox."
+            echo
+        else
+            # First install - show full welcome
+            logo_small
+            echo
+            cecho "ClaudeBox installed successfully!" "$GREEN"
+            echo
+            echo "Run 'claudebox' to start using ClaudeBox."
+            echo
+            touch "$HOME/.claudebox/.installed"
+        fi
+        exit 0
+    fi
+
     # Enable BuildKit for all Docker operations
     export DOCKER_BUILDKIT=1
-    
+
     # Step 1: Update symlink
     update_symlink
     
@@ -141,7 +166,7 @@ main() {
         dispatch_command "${CLI_SCRIPT_COMMAND}" "${CLI_PASS_THROUGH[@]:-}" "${CLI_CONTROL_FLAGS[@]:-}"
         exit $?
     fi
-    
+
     # Step 5: Docker checks
     local docker_status
     docker_status=$(check_docker; echo $?)
@@ -225,38 +250,7 @@ main() {
             echo "[DEBUG] Core image built, continuing with normal flow..." >&2
         fi
     fi
-    
-    # If running from installer, show appropriate message and exit
-    if [[ "${CLAUDEBOX_INSTALLER_RUN:-}" == "true" ]]; then
-        # Check if this is first install or update
-        if [[ -f "$HOME/.claudebox/.installed" ]]; then
-            # Update - just show brief message
-            logo_small
-            echo
-            cecho "ClaudeBox updated successfully!" "$GREEN"
-            echo
-            echo "Run 'claudebox' to start using ClaudeBox."
-            echo
-        else
-            # First install - check if they have projects
-            local project_count=$(ls -1d "$HOME/.claudebox/projects"/*/ 2>/dev/null | wc -l)
-            if [[ $project_count -eq 0 ]]; then
-                # Show full welcome
-                show_first_time_welcome
-            else
-                # Has projects but no .installed file
-                logo_small
-                echo
-                cecho "ClaudeBox installed successfully!" "$GREEN"
-                echo
-                echo "Run 'claudebox' to start using ClaudeBox."
-                echo
-            fi
-            touch "$HOME/.claudebox/.installed"
-        fi
-        exit 0
-    fi
-    
+
     # Step 6: Initialize project directory (creates parent with profiles.ini)
     init_project_dir "$PROJECT_DIR"
     PROJECT_PARENT_DIR=$(get_parent_dir "$PROJECT_DIR")
