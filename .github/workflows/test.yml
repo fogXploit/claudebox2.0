@@ -56,16 +56,18 @@ jobs:
         
     - name: Verify installer was created
       run: |
-        test -f claudebox
-        echo "Installer size: $(ls -lh claudebox | awk '{print $5}')"
-        
-    - name: Test installer in dev mode
+        test -f claudebox.run
+        test -L claudebox.run
+        test -f dist/claudebox.run
+        echo "Installer size: $(ls -lh dist/claudebox.run | awk '{print $5}')"
+
+    - name: Test main.sh in dev mode
       run: |
-        # Should detect we're in a git repo and run directly
-        ./claudebox --help | grep "ClaudeBox"
-        
+        # In a git repo, run main.sh directly to verify it works
+        ./main.sh --help | grep "ClaudeBox"
+
     - name: Upload installer artifact
       uses: actions/upload-artifact@v4
       with:
         name: claudebox-installer
-        path: claudebox
+        path: dist/claudebox.run
