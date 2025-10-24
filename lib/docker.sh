@@ -94,7 +94,7 @@ run_claudebox_container() {
     # Handle "attached" mode - start detached, wait, then attach
     if [[ "$run_mode" == "attached" ]]; then
         # Start detached
-        run_claudebox_container "$container_name" "detached" "${container_args[@]}" >/dev/null
+        run_claudebox_container "$container_name" "detached" "${container_args[@]:-}" >/dev/null
         
         # Show progress while container initializes
         fillbar
@@ -403,9 +403,9 @@ run_claudebox_container() {
     
     # Add any additional arguments
     if [[ ${#container_args[@]} -gt 0 ]]; then
-        docker_args+=("${container_args[@]}")
+        docker_args+=("${container_args[@]:-}")
     fi
-    
+
     # Run the container
     if [[ "$VERBOSE" == "true" ]]; then
         echo "[DEBUG] Docker run command: docker run ${docker_args[*]}" >&2
@@ -414,7 +414,7 @@ run_claudebox_container() {
     # Clear screen before launching container
     clear
 
-    docker run "${docker_args[@]}"
+    docker run "${docker_args[@]:-}"
     local exit_code=$?
 
     return $exit_code
