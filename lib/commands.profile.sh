@@ -6,6 +6,7 @@
 
 _cmd_profiles() {
     # Get current profiles
+    # shellcheck disable=SC2207  # Bash 3.2 compatible - mapfile not available
     local current_profiles=($(get_current_profiles))
     
     # Show logo first

@@ -222,8 +222,8 @@ _cmd_undo() {
     # Get oldest backup (smallest timestamp)
     local oldest=$(ls -1 "$backups_dir" | sort -n | head -1)
     local installed_path=$(which claudebox 2>/dev/null || echo "/usr/local/bin/claudebox")
-    
-    info "Restoring oldest backup from $(date -d @$oldest '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $oldest '+%Y-%m-%d %H:%M:%S')"
+
+    info "Restoring oldest backup from $(date -d @"$oldest" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$oldest" '+%Y-%m-%d %H:%M:%S')"
     
     if [[ -w "$installed_path" ]] || [[ -w "$(dirname "$installed_path")" ]]; then
         cp "$backups_dir/$oldest" "$installed_path"
@@ -246,8 +246,8 @@ _cmd_redo() {
     # Get newest backup (largest timestamp)
     local newest=$(ls -1 "$backups_dir" | sort -n | tail -1)
     local installed_path=$(which claudebox 2>/dev/null || echo "/usr/local/bin/claudebox")
-    
-    info "Restoring newest backup from $(date -d @$newest '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $newest '+%Y-%m-%d %H:%M:%S')"
+
+    info "Restoring newest backup from $(date -d @"$newest" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$newest" '+%Y-%m-%d %H:%M:%S')"
     
     if [[ -w "$installed_path" ]] || [[ -w "$(dirname "$installed_path")" ]]; then
         cp "$backups_dir/$newest" "$installed_path"

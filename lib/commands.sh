@@ -100,6 +100,7 @@ show_no_ready_slots_menu() {
 }
 
 # Show help function
+# shellcheck disable=SC2120  # Parameters are optional and may be used in future
 show_help() {
     # Optional parameters
     local message="${1:-}"
@@ -258,7 +259,7 @@ _forward_to_container() {
 dispatch_command() {
     local cmd="${1:-}"; shift || true
     if [[ "$VERBOSE" == "true" ]]; then
-        echo "[DEBUG] dispatch_command called with: cmd='$cmd' remaining args='$@'" >&2
+        echo "[DEBUG] dispatch_command called with: cmd='$cmd' remaining args='$*'" >&2
     fi
     
     case "${cmd}" in
@@ -298,7 +299,6 @@ dispatch_command() {
         tmux)             _cmd_tmux "$@" ;;
         project)          _cmd_project "$@" ;;
         import)           _cmd_import "$@" ;;
-        kill)             _cmd_kill "$@" ;;
         lint)             _cmd_lint "$@" ;;
         
         # Special commands that modify container
