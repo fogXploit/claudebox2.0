@@ -4,6 +4,40 @@ All notable changes to ClaudeBox will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.1.0] - 2025-11-04
+
+### Added
+- **Profile Versioning**: Specify exact language versions for all 8 programming languages
+  - Python: `claudebox add python:3.12` (uses uv)
+  - Node.js/JavaScript: `claudebox add javascript:18` (uses nvm)
+  - Rust: `claudebox add rust:1.75.0` (uses rustup)
+  - Go: `claudebox add go:1.21.5` (direct download)
+  - Java: `claudebox add java:17.0.9` (uses sdkman)
+  - Ruby: `claudebox add ruby:3.2.0` (uses rbenv)
+  - Flutter: `claudebox add flutter:3.16.0` (uses fvm)
+  - PHP: `claudebox add php:8.2.0` (uses phpenv)
+- **Custom Mounts System**: Mount additional host directories into containers
+  - YAML config file (`.claudebox.yml` in project root)
+  - CLI arguments: `claudebox --mount ~/data:/data:rw`
+  - Supports read-only (`ro`) and read-write (`rw`) modes
+  - CLI overrides config for same container path
+- **Version Flag Cleanup**: Automatic cleanup of old version flags when switching language versions
+  - Prevents flag file accumulation across all 8 languages
+  - Python: Also removes venv to force recreation with new version
+
+### Fixed
+- **Profile Versioning - Critical Bug Fixes**:
+  - Fixed Python installation verification (now filters "download available" false positives)
+  - Fixed Node.js version verification (now checks actual active version instead of trusting cache)
+  - Fixed venv cleanup when switching Python versions (removes symlinks to old Python binary)
+  - Fixed claude CLI not found errors (reinstalls when Node version changes)
+  - Fixed uv detection and error handling (explicit checks, clear error messages)
+  - Fixed silent installation failures (now shows output immediately for debugging)
+
+### Changed
+- **Docker Entrypoint**: Improved error handling and logging for language version installations
+- **Version Management**: Enhanced verification logic to check actual installed versions, not just flag files
+
 ## [2.0.1] - 2025-10-24
 
 ### Fixed

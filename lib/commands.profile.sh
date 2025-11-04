@@ -108,17 +108,32 @@ _cmd_add() {
             ;;
     esac
 
-    # Process profile names
-    local selected=() remaining=()
+    # Process profile names with optional versions (profile:version)
+    local selected=() selected_versions=() remaining=()
     while [[ $# -gt 0 ]]; do
         # Stop processing if we hit a flag (starts with -)
         if [[ "$1" == -* ]]; then
             remaining=("$@")
             break
         fi
-        
-        if profile_exists "$1"; then
-            selected+=("$1")
+
+        # Parse profile:version syntax
+        local profile_spec="$1"
+        local profile_name=""
+        local profile_version=""
+
+        # Check if profile_spec contains a colon
+        if [[ "$profile_spec" == *:* ]]; then
+            profile_name="${profile_spec%%:*}"
+            profile_version="${profile_spec#*:}"
+        else
+            profile_name="$profile_spec"
+            profile_version=""
+        fi
+
+        if profile_exists "$profile_name"; then
+            selected+=("$profile_name")
+            selected_versions+=("$profile_version")
             shift
         else
             remaining=("$@")
@@ -129,6 +144,16 @@ _cmd_add() {
     [[ ${#selected[@]} -eq 0 ]] && error "No valid profiles specified\nRun 'claudebox profiles' to see available profiles"
 
     update_profile_section "$profile_file" "profiles" "${selected[@]:-}"
+
+    # Update versions section for profiles that have versions specified
+    local i=0
+    for profile in "${selected[@]:-}"; do
+        local version="${selected_versions[$i]}"
+        if [[ -n "$version" ]]; then
+            update_profile_version "$profile_file" "$profile" "$version"
+        fi
+        i=$((i + 1))
+    done
 
     local all_profiles=()
     local all_profiles=()

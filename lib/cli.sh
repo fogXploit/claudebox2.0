@@ -18,21 +18,31 @@ readonly SCRIPT_COMMANDS=(shell create slot slots revoke profiles projects profi
 #   control_flags: Array of control flags (verbose, enable-sudo, etc)
 #   script_command: Single command for ClaudeBox to execute
 #   pass_through: Array of args to pass to Claude in container
+#   mount_specs: Array of mount specifications (--mount handling)
 # Note: Each argument goes into exactly ONE bucket - no duplication
 parse_cli_args() {
     local all_args=("$@")
-    
+
     # Initialize bucket arrays
     host_flags=()
     control_flags=()
     script_command=""
     pass_through=()
-    
+    mount_specs=()
+
     # Single parsing loop - each arg goes into exactly ONE bucket
     local found_script_command=false
-    
-    for arg in "${all_args[@]:-}"; do
-        if [[ " ${HOST_ONLY_FLAGS[*]} " == *" $arg "* ]]; then
+    local i=0
+    while [[ $i -lt ${#all_args[@]} ]]; do
+        local arg="${all_args[$i]}"
+
+        if [[ "$arg" == "--mount" ]]; then
+            # Special handling for --mount flag (takes next arg as value)
+            i=$((i + 1))
+            if [[ $i -lt ${#all_args[@]} ]]; then
+                mount_specs+=("${all_args[$i]}")
+            fi
+        elif [[ " ${HOST_ONLY_FLAGS[*]} " == *" $arg "* ]]; then
             # Bucket 1: Host-only flags
             host_flags+=("$arg")
         elif [[ " ${CONTROL_FLAGS[*]} " == *" $arg "* ]]; then
@@ -46,13 +56,16 @@ parse_cli_args() {
             # Bucket 4: Pass-through (everything else)
             pass_through+=("$arg")
         fi
+
+        i=$((i + 1))
     done
-    
+
     # Export results for use by main script
     export CLI_HOST_FLAGS=("${host_flags[@]:-}")
     export CLI_CONTROL_FLAGS=("${control_flags[@]:-}")
     export CLI_SCRIPT_COMMAND="$script_command"
     export CLI_PASS_THROUGH=("${pass_through[@]:-}")
+    export CLI_MOUNT_SPECS=("${mount_specs[@]:-}")
 }
 
 # Process host-only flags and set environment variables
@@ -130,6 +143,7 @@ debug_parsed_args() {
         echo "[DEBUG]   Control flags: ${CLI_CONTROL_FLAGS[*]}" >&2
         echo "[DEBUG]   Script command: ${CLI_SCRIPT_COMMAND}" >&2
         echo "[DEBUG]   Pass-through: ${CLI_PASS_THROUGH[*]}" >&2
+        echo "[DEBUG]   Mount specs: ${CLI_MOUNT_SPECS[*]}" >&2
     fi
 }
 

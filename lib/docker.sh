@@ -241,7 +241,7 @@ run_claudebox_container() {
     
     # Mount SSH directory
     docker_args+=(-v "$HOME/.ssh":"/home/$DOCKER_USER/.ssh:ro")
-    
+
     # Mount .env file if it exists in the project directory
     if [[ -f "$PROJECT_DIR/.env" ]]; then
         docker_args+=(-v "$PROJECT_DIR/.env":/workspace/.env:ro)
@@ -249,6 +249,75 @@ run_claudebox_container() {
             echo "[DEBUG] Mounting .env file from project directory" >&2
         fi
     fi
+
+    # Custom mounts from .claudebox.yml and CLI
+    local config_mounts=()
+    local cli_mounts=()
+    local all_custom_mounts=()
+
+    # Parse mounts from .claudebox.yml in project directory
+    local claudebox_yaml="$PROJECT_DIR/.claudebox.yml"
+    if [[ -f "$claudebox_yaml" ]]; then
+        while IFS= read -r mount_spec; do
+            if [[ -n "$mount_spec" ]]; then
+                config_mounts+=("$mount_spec")
+            fi
+        done < <(parse_claudebox_yaml_mounts "$claudebox_yaml")
+
+        if [[ "$VERBOSE" == "true" ]] && [[ ${#config_mounts[@]} -gt 0 ]]; then
+            printf "[DEBUG] Found %d mount(s) from .claudebox.yml\n" "${#config_mounts[@]}" >&2
+        fi
+    fi
+
+    # Parse CLI mount specifications
+    if [[ ${#CLI_MOUNT_SPECS[@]} -gt 0 ]]; then
+        for mount_spec in "${CLI_MOUNT_SPECS[@]:-}"; do
+            local parsed_mount
+            if parsed_mount=$(parse_cli_mount "$mount_spec"); then
+                cli_mounts+=("$parsed_mount")
+            else
+                warn "Invalid mount specification: $mount_spec"
+            fi
+        done
+
+        if [[ "$VERBOSE" == "true" ]] && [[ ${#cli_mounts[@]} -gt 0 ]]; then
+            printf "[DEBUG] Found %d mount(s) from CLI\n" "${#cli_mounts[@]}" >&2
+        fi
+    fi
+
+    # Merge mounts (CLI overrides config)
+    if [[ ${#config_mounts[@]} -gt 0 ]] || [[ ${#cli_mounts[@]} -gt 0 ]]; then
+        while IFS= read -r mount_spec; do
+            if [[ -n "$mount_spec" ]]; then
+                all_custom_mounts+=("$mount_spec")
+            fi
+        done < <(merge_mounts "${config_mounts[@]:-}" "${cli_mounts[@]:-}")
+    fi
+
+    # Add custom mounts to docker args
+    for mount_spec in "${all_custom_mounts[@]:-}"; do
+        local host_path="${mount_spec%%:*}"
+        local rest="${mount_spec#*:}"
+        local container_path="${rest%%:*}"
+        local mode="${rest#*:}"
+
+        # Check if host path exists
+        if [[ ! -e "$host_path" ]]; then
+            warn "Mount source does not exist: $host_path (skipping)"
+            continue
+        fi
+
+        # Add mount to docker args
+        if [[ "$mode" == "ro" ]]; then
+            docker_args+=(-v "$host_path:$container_path:ro")
+        else
+            docker_args+=(-v "$host_path:$container_path")
+        fi
+
+        if [[ "$VERBOSE" == "true" ]]; then
+            printf "[DEBUG] Mounting: %s -> %s (%s)\n" "$host_path" "$container_path" "$mode" >&2
+        fi
+    done
     
     # Parse and prepare MCP servers for native --mcp-config support
     # Check for jq dependency first - fail fast with clear error message

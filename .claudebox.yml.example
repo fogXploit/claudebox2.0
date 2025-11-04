@@ -1,0 +1,27 @@
+# ClaudeBox Configuration File
+# Place this file as .claudebox.yml in your project root
+
+# Custom volume mounts
+# These mounts will be added to the container in addition to the default mounts
+# CLI mounts (--mount flag) will override config file mounts for the same container path
+mounts:
+  # Mount a data directory with read-write access
+  - host: ~/data
+    container: /data
+    readonly: false
+
+  # Mount a models directory as read-only
+  - host: ~/models
+    container: /models
+    readonly: true
+
+  # Mount a cache directory
+  - host: ~/.cache/myapp
+    container: /cache
+    readonly: false
+
+# Notes:
+# - host: Path on your local machine (~ expands to $HOME)
+# - container: Path inside the container
+# - readonly: true for read-only (ro), false for read-write (rw)
+# - Host paths that don't exist will be skipped with a warning

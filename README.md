@@ -1,4 +1,4 @@
-# ClaudeBox 2.0 🐳
+# ClaudeBox 2.1 🐳
 
 [![Docker](https://img.shields.io/badge/Docker-Required-blue.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -24,6 +24,8 @@ The Ultimate Claude Code Docker Development Environment - Run Claude AI's coding
 
 ## 🚀 What's New in Latest Update
 
+- **Profile Versioning**: Specify exact language versions (e.g., `python:3.12`, `javascript:18`)
+- **Custom Mounts**: Mount host directories via `.claudebox.yml` or `--mount` CLI flag
 - **Enhanced UI/UX**: Improved menu alignment and comprehensive info display
 - **New `profiles` Command**: Quick listing of all available profiles with descriptions
 - **Firewall Management**: New `allowlist` command to view/edit network allowlists
@@ -57,7 +59,7 @@ The Ultimate Claude Code Docker Development Environment - Run Claude AI's coding
 
 ## 🛠️ Installation
 
-ClaudeBox v2.0.0 offers two installation methods:
+ClaudeBox v2.1.0 offers two installation methods:
 
 ### Method 1: Self-Extracting Installer (Recommended)
 
@@ -81,11 +83,11 @@ For manual installation or custom locations, use the archive:
 
 ```bash
 # Download the archive
-wget https://github.com/fogXploit/claudebox2.0/releases/latest/download/claudebox-2.0.0.tar.gz
+wget https://github.com/fogXploit/claudebox2.0/releases/latest/download/claudebox-2.1.0.tar.gz
 
 # Extract to your preferred location
 mkdir -p ~/my-tools/claudebox
-tar -xzf claudebox-2.0.0.tar.gz -C ~/my-tools/claudebox
+tar -xzf claudebox-2.1.0.tar.gz -C ~/my-tools/claudebox
 
 # Run main.sh to create symlink
 cd ~/my-tools/claudebox
@@ -226,6 +228,91 @@ claudebox profile rust go         # Rust + Go
 - **datascience** - Data Science (Python, Jupyter, R)
 - **security** - Security Tools (scanners, crackers, packet tools)
 - **ml** - Machine Learning (build layer only; Python via uv)
+
+#### Profile Versioning
+
+Specify exact versions for programming language profiles:
+
+```bash
+# Install specific language versions
+claudebox add python:3.12        # Python 3.12
+claudebox add javascript:18      # Node.js 18
+claudebox add rust:1.75.0        # Rust 1.75.0
+claudebox add java:17.0.9        # Java 17.0.9
+claudebox add go:1.21.5          # Go 1.21.5
+claudebox add ruby:3.2.0         # Ruby 3.2.0
+claudebox add flutter:3.16.0     # Flutter 3.16.0 (or "stable")
+claudebox add php:8.2.0          # PHP 8.2.0
+
+# Mix versioned and unversioned profiles
+claudebox add python:3.11 rust:1.75.0 c
+```
+
+**Supported Version Managers:**
+- **Python**: uv (`uv python install <version>`)
+- **Node.js**: nvm (`nvm install <version>`)
+- **Rust**: rustup (`rustup install <version>`)
+- **Go**: Direct download from golang.org
+- **Java**: SDKMan (`sdk install java <version>`)
+- **Ruby**: rbenv (`rbenv install <version>`)
+- **Flutter**: fvm (`fvm install <version>`) - supports versions like "3.16.0" or "stable"
+- **PHP**: phpenv (`phpenv install <version>`)
+
+Versions are stored in `profiles.ini` and automatically installed when the container starts.
+
+### Custom Mounts
+
+Mount additional directories from your host into the container:
+
+#### Using Configuration File
+
+Create `.claudebox.yml` in your project root:
+
+```yaml
+mounts:
+  - host: ~/data
+    container: /data
+    readonly: false
+  - host: ~/models
+    container: /models
+    readonly: true
+```
+
+#### Using CLI Arguments
+
+```bash
+# Mount with read-write access (default)
+claudebox --mount ~/data:/data
+
+# Mount with read-only access
+claudebox --mount ~/models:/models:ro
+
+# Mount with explicit read-write
+claudebox --mount ~/cache:/cache:rw
+
+# Multiple mounts
+claudebox --mount ~/data:/data:rw --mount ~/models:/models:ro
+```
+
+**Features:**
+- CLI mounts override config file mounts for the same container path
+- Automatic tilde (~) expansion to $HOME
+- Validation: warns if host path doesn't exist
+- Supports both `ro` (read-only) and `rw` (read-write) modes
+
+**Example `.claudebox.yml`:**
+```yaml
+mounts:
+  - host: ~/projects/shared-libs
+    container: /shared-libs
+    readonly: true
+  - host: ~/.aws
+    container: /home/claude/.aws
+    readonly: true
+  - host: ~/datasets
+    container: /datasets
+    readonly: false
+```
 
 ### Default Flags Management
 

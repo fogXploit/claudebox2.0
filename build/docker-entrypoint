@@ -29,7 +29,7 @@ export DISABLE_FIREWALL
 
 # Debug output (check environment variable)
 if [[ "${VERBOSE:-false}" == "true" ]]; then
-    echo "DEBUG: Arguments: $@" >&2
+    echo "DEBUG: Arguments: $*" >&2
     echo "DEBUG: Number of args: $#" >&2
     echo "DEBUG: ENABLE_SUDO=$ENABLE_SUDO" >&2
     echo "DEBUG: DISABLE_FIREWALL=$DISABLE_FIREWALL" >&2
@@ -47,6 +47,380 @@ if [ "$ENABLE_SUDO" != "true" ]; then
     rm -f /etc/sudoers.d/DOCKERUSER
 fi
 
+# Install specific language versions if specified in profiles.ini
+if [ -n "${CLAUDEBOX_PROJECT_NAME:-}" ]; then
+    CLAUDEBOX_DIR="/home/DOCKERUSER/.claudebox"
+    CONFIG_FILE="$CLAUDEBOX_DIR/profiles.ini"
+
+    if [ -f "$CONFIG_FILE" ]; then
+        # Function to read version from config file
+        read_version() {
+            profile_name="$1"
+            awk -F' *= *' -v profile="$profile_name" '
+                /^\[versions\]/ { in_versions=1; next }
+                /^\[/ { in_versions=0 }
+                in_versions && $1 == profile { print $2; exit }
+            ' "$CONFIG_FILE" 2>/dev/null
+        }
+
+        # Function to check if profile exists in [profiles] section
+        has_profile() {
+            profile_name="$1"
+            awk -v profile="$profile_name" '
+                /^\[profiles\]/ { in_profiles=1; next }
+                /^\[/ { in_profiles=0 }
+                in_profiles && $0 == profile { found=1; exit }
+                END { exit !found }
+            ' "$CONFIG_FILE" 2>/dev/null
+        }
+
+        # Check each profile and install specified version
+        # Python version management
+        if has_profile "python" || has_profile "ml" || has_profile "datascience"; then
+            PYTHON_VERSION=$(read_version "python")
+            if [ -n "$PYTHON_VERSION" ]; then
+                VERSION_FLAG="$CLAUDEBOX_DIR/.python_${PYTHON_VERSION}_installed"
+
+                # Clean up old version flags if switching versions
+                for old_flag in "$CLAUDEBOX_DIR"/.python_*_installed; do
+                    if [ -f "$old_flag" ] && [ "$old_flag" != "$VERSION_FLAG" ]; then
+                        if [ "${VERBOSE:-false}" = "true" ]; then
+                            echo "Removing old Python version flag: $(basename "$old_flag")" >&2
+                            echo "Removing venv to recreate with new Python version" >&2
+                        fi
+                        rm -f "$old_flag"
+                        # Also remove venv so it gets recreated with new Python version
+                        rm -rf "$CLAUDEBOX_DIR/.venv"
+                        rm -f "$CLAUDEBOX_DIR/.venv_flag"
+                        rm -f "$CLAUDEBOX_DIR/.pydev_flag"
+                    fi
+                done
+
+                # Check if uv is available (try to find it explicitly)
+                if [ -x "/home/DOCKERUSER/.local/bin/uv" ] || command -v uv >/dev/null 2>&1; then
+                    # Only install if not already installed (check flag file)
+                    if [ ! -f "$VERSION_FLAG" ]; then
+                        if [ "${VERBOSE:-false}" = "true" ]; then
+                            echo "Installing Python $PYTHON_VERSION via uv..." >&2
+                        fi
+
+                        # Attempt installation - show output immediately instead of capturing
+                        if PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv python install "$PYTHON_VERSION" 2>&1; then
+                            # Verify installation succeeded - check for installed version (without <download available>)
+                            if PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv python list 2>/dev/null | grep "$PYTHON_VERSION" | grep -v "download available" | grep -q .; then
+                                # Installation verified - create flag file
+                                runuser -u DOCKERUSER -- touch "$VERSION_FLAG"
+                            else
+                                echo "Error: Python $PYTHON_VERSION installation completed but version not found as installed" >&2
+                                echo "Installed Python versions:" >&2
+                                PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv python list 2>&1 | grep -v "download available" | head -10 >&2
+                                echo "Troubleshooting:" >&2
+                                echo "  - Check network connectivity" >&2
+                                echo "  - Check disk space: df -h" >&2
+                                echo "  - Try: docker rmi claudebox-core && claudebox" >&2
+                            fi
+                        else
+                            # Installation command failed
+                            echo "Error: Failed to install Python $PYTHON_VERSION via uv (exit code: $?)" >&2
+                            echo "Troubleshooting:" >&2
+                            echo "  - Check network connectivity" >&2
+                            echo "  - Check permissions in ~/.local/share/uv/" >&2
+                            echo "  - Check disk space: df -h" >&2
+                            echo "  - Try: docker rmi claudebox-core && claudebox" >&2
+                        fi
+                    fi
+                else
+                    echo "Warning: uv not found. Cannot install Python $PYTHON_VERSION" >&2
+                    echo "Try: docker rmi claudebox-core && claudebox" >&2
+                fi
+            fi
+        fi
+
+        # Node.js / JavaScript version management
+        if has_profile "javascript"; then
+            NODE_VERSION=$(read_version "javascript")
+            if [ -n "$NODE_VERSION" ]; then
+                VERSION_FLAG="$CLAUDEBOX_DIR/.node_${NODE_VERSION}_installed"
+                NVM_DIR="/home/DOCKERUSER/.nvm"
+
+                # Clean up old version flags if switching versions
+                for old_flag in "$CLAUDEBOX_DIR"/.node_*_installed; do
+                    if [ -f "$old_flag" ] && [ "$old_flag" != "$VERSION_FLAG" ]; then
+                        if [ "${VERBOSE:-false}" = "true" ]; then
+                            echo "Removing old Node.js version flag: $(basename "$old_flag")" >&2
+                        fi
+                        rm -f "$old_flag"
+                    fi
+                done
+
+                # Check if flag exists AND version is actually default
+                SHOULD_INSTALL=false
+                if [ ! -f "$VERSION_FLAG" ]; then
+                    SHOULD_INSTALL=true
+                else
+                    # Flag exists, verify correct version is default
+                    CURRENT_NODE=$(runuser -u DOCKERUSER -- bash -c "source $NVM_DIR/nvm.sh 2>/dev/null && node --version 2>/dev/null" | sed 's/v//' || echo "")
+                    if [ -z "$CURRENT_NODE" ]; then
+                        SHOULD_INSTALL=true
+                    elif ! echo "$CURRENT_NODE" | grep -q "^${NODE_VERSION}"; then
+                        SHOULD_INSTALL=true
+                    fi
+                fi
+
+                if [ -s "$NVM_DIR/nvm.sh" ] && [ "$SHOULD_INSTALL" = "true" ]; then
+                    ERROR_FILE=$(mktemp /tmp/nvm_error.XXXXXX)
+
+                    if [ "${VERBOSE:-false}" = "true" ]; then
+                        echo "Installing Node.js $NODE_VERSION via nvm..." >&2
+                    fi
+
+                    if runuser -u DOCKERUSER -- bash -c "source $NVM_DIR/nvm.sh 2>/dev/null && nvm install $NODE_VERSION && nvm alias default $NODE_VERSION && npm install -g @anthropic-ai/claude-code@latest" >/dev/null 2>"$ERROR_FILE"; then
+                        # Verify installation
+                        INSTALLED_VERSION=$(runuser -u DOCKERUSER -- bash -c "source $NVM_DIR/nvm.sh 2>/dev/null && node --version 2>/dev/null" | sed 's/v//' || echo "")
+                        if echo "$INSTALLED_VERSION" | grep -q "^${NODE_VERSION}"; then
+                            runuser -u DOCKERUSER -- touch "$VERSION_FLAG"
+                            rm -f "$ERROR_FILE"
+                        else
+                            echo "Error: Node.js $NODE_VERSION installation completed but version mismatch (got $INSTALLED_VERSION)" >&2
+                            rm -f "$ERROR_FILE"
+                        fi
+                    else
+                        echo "Error: Failed to install Node.js $NODE_VERSION via nvm" >&2
+                        if [ -s "$ERROR_FILE" ]; then
+                            echo "nvm error output:" >&2
+                            cat "$ERROR_FILE" >&2
+                        fi
+                        rm -f "$ERROR_FILE"
+                    fi
+                fi
+            fi
+        fi
+
+        # Rust version management
+        if has_profile "rust"; then
+            RUST_VERSION=$(read_version "rust")
+            if [ -n "$RUST_VERSION" ]; then
+                VERSION_FLAG="$CLAUDEBOX_DIR/.rust_${RUST_VERSION}_installed"
+
+                # Clean up old version flags if switching versions
+                for old_flag in "$CLAUDEBOX_DIR"/.rust_*_installed; do
+                    if [ -f "$old_flag" ] && [ "$old_flag" != "$VERSION_FLAG" ]; then
+                        if [ "${VERBOSE:-false}" = "true" ]; then
+                            echo "Removing old Rust version flag: $(basename "$old_flag")" >&2
+                        fi
+                        rm -f "$old_flag"
+                    fi
+                done
+
+                if [ ! -f "$VERSION_FLAG" ]; then
+                    ERROR_FILE=$(mktemp /tmp/rust_error.XXXXXX)
+
+                    if [ "${VERBOSE:-false}" = "true" ]; then
+                        echo "Installing Rust $RUST_VERSION via rustup..." >&2
+                    fi
+
+                    if runuser -u DOCKERUSER -- bash -c "rustup install $RUST_VERSION && rustup default $RUST_VERSION" >/dev/null 2>"$ERROR_FILE"; then
+                        runuser -u DOCKERUSER -- touch "$VERSION_FLAG"
+                        rm -f "$ERROR_FILE"
+                    else
+                        echo "Error: Failed to install Rust $RUST_VERSION" >&2
+                        if [ -s "$ERROR_FILE" ]; then
+                            cat "$ERROR_FILE" >&2
+                        fi
+                        rm -f "$ERROR_FILE"
+                    fi
+                fi
+            fi
+        fi
+
+        # Go version management
+        if has_profile "go"; then
+            GO_VERSION=$(read_version "go")
+            if [ -n "$GO_VERSION" ]; then
+                VERSION_FLAG="$CLAUDEBOX_DIR/.go_${GO_VERSION}_installed"
+
+                # Clean up old version flags if switching versions
+                for old_flag in "$CLAUDEBOX_DIR"/.go_*_installed; do
+                    if [ -f "$old_flag" ] && [ "$old_flag" != "$VERSION_FLAG" ]; then
+                        if [ "${VERBOSE:-false}" = "true" ]; then
+                            echo "Removing old Go version flag: $(basename "$old_flag")" >&2
+                        fi
+                        rm -f "$old_flag"
+                    fi
+                done
+
+                if [ ! -f "$VERSION_FLAG" ]; then
+                    ERROR_FILE=$(mktemp /tmp/go_error.XXXXXX)
+
+                    if [ "${VERBOSE:-false}" = "true" ]; then
+                        echo "Installing Go $GO_VERSION..." >&2
+                    fi
+
+                    GO_URL="https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz"
+                    if runuser -u DOCKERUSER -- bash -c "cd /tmp && curl -sL $GO_URL | tar -xz && rm -rf /home/DOCKERUSER/.go && mv go /home/DOCKERUSER/.go" >/dev/null 2>"$ERROR_FILE"; then
+                        runuser -u DOCKERUSER -- touch "$VERSION_FLAG"
+                        rm -f "$ERROR_FILE"
+                    else
+                        echo "Error: Failed to install Go $GO_VERSION" >&2
+                        if [ -s "$ERROR_FILE" ]; then
+                            cat "$ERROR_FILE" >&2
+                        fi
+                        rm -f "$ERROR_FILE"
+                    fi
+                fi
+            fi
+        fi
+
+        # Java version management
+        if has_profile "java"; then
+            JAVA_VERSION=$(read_version "java")
+            if [ -n "$JAVA_VERSION" ]; then
+                VERSION_FLAG="$CLAUDEBOX_DIR/.java_${JAVA_VERSION}_installed"
+
+                # Clean up old version flags if switching versions
+                for old_flag in "$CLAUDEBOX_DIR"/.java_*_installed; do
+                    if [ -f "$old_flag" ] && [ "$old_flag" != "$VERSION_FLAG" ]; then
+                        if [ "${VERBOSE:-false}" = "true" ]; then
+                            echo "Removing old Java version flag: $(basename "$old_flag")" >&2
+                        fi
+                        rm -f "$old_flag"
+                    fi
+                done
+
+                if [ ! -f "$VERSION_FLAG" ]; then
+                    ERROR_FILE=$(mktemp /tmp/java_error.XXXXXX)
+
+                    if [ "${VERBOSE:-false}" = "true" ]; then
+                        echo "Installing Java $JAVA_VERSION via sdkman..." >&2
+                    fi
+
+                    if runuser -u DOCKERUSER -- bash -c "source /home/DOCKERUSER/.sdkman/bin/sdkman-init.sh && sdk install java $JAVA_VERSION && sdk default java $JAVA_VERSION" >/dev/null 2>"$ERROR_FILE"; then
+                        runuser -u DOCKERUSER -- touch "$VERSION_FLAG"
+                        rm -f "$ERROR_FILE"
+                    else
+                        echo "Error: Failed to install Java $JAVA_VERSION" >&2
+                        if [ -s "$ERROR_FILE" ]; then
+                            cat "$ERROR_FILE" >&2
+                        fi
+                        rm -f "$ERROR_FILE"
+                    fi
+                fi
+            fi
+        fi
+
+        # Ruby version management
+        if has_profile "ruby"; then
+            RUBY_VERSION=$(read_version "ruby")
+            if [ -n "$RUBY_VERSION" ]; then
+                VERSION_FLAG="$CLAUDEBOX_DIR/.ruby_${RUBY_VERSION}_installed"
+
+                # Clean up old version flags if switching versions
+                for old_flag in "$CLAUDEBOX_DIR"/.ruby_*_installed; do
+                    if [ -f "$old_flag" ] && [ "$old_flag" != "$VERSION_FLAG" ]; then
+                        if [ "${VERBOSE:-false}" = "true" ]; then
+                            echo "Removing old Ruby version flag: $(basename "$old_flag")" >&2
+                        fi
+                        rm -f "$old_flag"
+                    fi
+                done
+
+                if [ ! -f "$VERSION_FLAG" ]; then
+                    ERROR_FILE=$(mktemp /tmp/ruby_error.XXXXXX)
+
+                    if [ "${VERBOSE:-false}" = "true" ]; then
+                        echo "Installing Ruby $RUBY_VERSION via rbenv..." >&2
+                    fi
+
+                    if runuser -u DOCKERUSER -- bash -c "rbenv install $RUBY_VERSION && rbenv global $RUBY_VERSION" >/dev/null 2>"$ERROR_FILE"; then
+                        runuser -u DOCKERUSER -- touch "$VERSION_FLAG"
+                        rm -f "$ERROR_FILE"
+                    else
+                        echo "Error: Failed to install Ruby $RUBY_VERSION" >&2
+                        if [ -s "$ERROR_FILE" ]; then
+                            cat "$ERROR_FILE" >&2
+                        fi
+                        rm -f "$ERROR_FILE"
+                    fi
+                fi
+            fi
+        fi
+
+        # Flutter version management
+        if has_profile "flutter"; then
+            FLUTTER_VERSION=$(read_version "flutter")
+            if [ -n "$FLUTTER_VERSION" ]; then
+                VERSION_FLAG="$CLAUDEBOX_DIR/.flutter_${FLUTTER_VERSION}_installed"
+
+                # Clean up old version flags if switching versions
+                for old_flag in "$CLAUDEBOX_DIR"/.flutter_*_installed; do
+                    if [ -f "$old_flag" ] && [ "$old_flag" != "$VERSION_FLAG" ]; then
+                        if [ "${VERBOSE:-false}" = "true" ]; then
+                            echo "Removing old Flutter version flag: $(basename "$old_flag")" >&2
+                        fi
+                        rm -f "$old_flag"
+                    fi
+                done
+
+                if [ ! -f "$VERSION_FLAG" ]; then
+                    ERROR_FILE=$(mktemp /tmp/flutter_error.XXXXXX)
+
+                    if [ "${VERBOSE:-false}" = "true" ]; then
+                        echo "Installing Flutter $FLUTTER_VERSION via fvm..." >&2
+                    fi
+
+                    if runuser -u DOCKERUSER -- bash -c "fvm install $FLUTTER_VERSION && fvm global $FLUTTER_VERSION" >/dev/null 2>"$ERROR_FILE"; then
+                        runuser -u DOCKERUSER -- touch "$VERSION_FLAG"
+                        rm -f "$ERROR_FILE"
+                    else
+                        echo "Error: Failed to install Flutter $FLUTTER_VERSION" >&2
+                        if [ -s "$ERROR_FILE" ]; then
+                            cat "$ERROR_FILE" >&2
+                        fi
+                        rm -f "$ERROR_FILE"
+                    fi
+                fi
+            fi
+        fi
+
+        # PHP version management
+        if has_profile "php"; then
+            PHP_VERSION=$(read_version "php")
+            if [ -n "$PHP_VERSION" ]; then
+                VERSION_FLAG="$CLAUDEBOX_DIR/.php_${PHP_VERSION}_installed"
+
+                # Clean up old version flags if switching versions
+                for old_flag in "$CLAUDEBOX_DIR"/.php_*_installed; do
+                    if [ -f "$old_flag" ] && [ "$old_flag" != "$VERSION_FLAG" ]; then
+                        if [ "${VERBOSE:-false}" = "true" ]; then
+                            echo "Removing old PHP version flag: $(basename "$old_flag")" >&2
+                        fi
+                        rm -f "$old_flag"
+                    fi
+                done
+
+                if [ ! -f "$VERSION_FLAG" ]; then
+                    ERROR_FILE=$(mktemp /tmp/php_error.XXXXXX)
+
+                    if [ "${VERBOSE:-false}" = "true" ]; then
+                        echo "Installing PHP $PHP_VERSION via phpenv..." >&2
+                    fi
+
+                    if runuser -u DOCKERUSER -- bash -c "phpenv install $PHP_VERSION && phpenv global $PHP_VERSION" >/dev/null 2>"$ERROR_FILE"; then
+                        runuser -u DOCKERUSER -- touch "$VERSION_FLAG"
+                        rm -f "$ERROR_FILE"
+                    else
+                        echo "Error: Failed to install PHP $PHP_VERSION" >&2
+                        if [ -s "$ERROR_FILE" ]; then
+                            cat "$ERROR_FILE" >&2
+                        fi
+                        rm -f "$ERROR_FILE"
+                    fi
+                fi
+            fi
+        fi
+    fi
+fi
+
 # Python venv management with flag-based system
 if [ -n "${CLAUDEBOX_PROJECT_NAME:-}" ]; then
     CLAUDEBOX_DIR="/home/DOCKERUSER/.claudebox"
@@ -55,11 +429,121 @@ if [ -n "${CLAUDEBOX_PROJECT_NAME:-}" ]; then
     VENV_FLAG="$CLAUDEBOX_DIR/.venv_flag"
     PYDEV_FLAG="$CLAUDEBOX_DIR/.pydev_flag"
 
-    # Check if we need to set up the core Python environment
-    if command -v uv >/dev/null 2>&1; then
-        # Check if both venv folder and .venv_flag exist
-        if [ -d "$VENV_DIR" ] && [ -f "$VENV_FLAG" ]; then
-            # Already set up, just ensure activation in shell rc files
+    # Check if uv is available (try explicit path first, then PATH)
+    if [ -x "/home/DOCKERUSER/.local/bin/uv" ] || command -v uv >/dev/null 2>&1; then
+        # Determine Python version to use
+        PYTHON_VERSION_ARG=""
+        if [ -f "$CONFIG_FILE" ]; then
+            PYTHON_VERSION=$(awk -F' *= *' -v profile="python" '
+                /^\[versions\]/ { in_versions=1; next }
+                /^\[/ { in_versions=0 }
+                in_versions && $1 == profile { print $2; exit }
+            ' "$CONFIG_FILE" 2>/dev/null)
+            if [ -n "$PYTHON_VERSION" ]; then
+                # Verify the Python version is actually installed (not just available for download)
+                if PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv python list 2>/dev/null | grep "$PYTHON_VERSION" | grep -v "download available" | grep -q .; then
+                    PYTHON_VERSION_ARG="--python $PYTHON_VERSION"
+                else
+                    echo "Warning: Python $PYTHON_VERSION not installed. Using system default." >&2
+                    if [ "${VERBOSE:-false}" = "true" ]; then
+                        echo "Installed Python versions:" >&2
+                        PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv python list 2>&1 | grep -v "download available" | head -10 >&2
+                    fi
+                    PYTHON_VERSION_ARG=""
+                fi
+            fi
+        fi
+    else
+        echo "Warning: uv not found. Python venv creation may fail." >&2
+        echo "To fix: docker rmi claudebox-core && claudebox" >&2
+    fi
+
+    # Check if both venv folder and .venv_flag exist
+    if [ -d "$VENV_DIR" ] && [ -f "$VENV_FLAG" ]; then
+        # Already set up, just ensure activation in shell rc files
+        for shell_rc in /home/DOCKERUSER/.zshrc /home/DOCKERUSER/.bashrc; do
+            # Add .local/bin to PATH if not already there
+            if ! grep -q "PATH.*\.local/bin" "$shell_rc"; then
+                echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$shell_rc"
+            fi
+            # Add venv activation if not already there
+            if ! grep -q "source $VENV_DIR/bin/activate" "$shell_rc"; then
+                echo "if [ -f $VENV_DIR/bin/activate ]; then source $VENV_DIR/bin/activate; fi" >> "$shell_rc"
+            fi
+        done
+    else
+        # Check if venv exists but flag is missing (incomplete previous run)
+        if [ -d "$VENV_DIR" ] && [ ! -f "$VENV_FLAG" ]; then
+            # Try to acquire lock for recreating corrupted venv
+            if runuser -u DOCKERUSER -- mkdir -p "$(dirname "$VENV_FLAG")" && runuser -u DOCKERUSER -- mkdir "$VENV_FLAG.lock" 2>/dev/null; then
+                VENV_ERROR_FILE=$(mktemp /tmp/venv_error.XXXXXX)
+
+                # We got the lock, recreate venv with --clear
+                if PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- bash -c "uv venv --python-preference managed --clear $PYTHON_VERSION_ARG '$VENV_DIR'" >/dev/null 2>"$VENV_ERROR_FILE"; then
+                    # Remove lock and create flag to indicate completion
+                    runuser -u DOCKERUSER -- rmdir "$VENV_FLAG.lock"
+                    runuser -u DOCKERUSER -- touch "$VENV_FLAG"
+                    rm -f "$VENV_ERROR_FILE"
+                else
+                    echo "Error: Failed to recreate Python venv" >&2
+                    if [ -s "$VENV_ERROR_FILE" ]; then
+                        echo "uv venv error output:" >&2
+                        cat "$VENV_ERROR_FILE" >&2
+                    fi
+                    runuser -u DOCKERUSER -- rmdir "$VENV_FLAG.lock"
+                    rm -f "$VENV_ERROR_FILE"
+                fi
+            else
+                # Someone else is fixing it, wait for completion
+                wait_count=0
+                while [ ! -f "$VENV_FLAG" ] && [ "$wait_count" -lt 60 ]; do
+                    sleep 0.5
+                    wait_count=$((wait_count + 1))
+                done
+
+                if [ ! -f "$VENV_FLAG" ]; then
+                    echo "Warning: Timeout waiting for venv recreation" >&2
+                fi
+            fi
+        else
+            # Normal case - try to create new venv
+            if runuser -u DOCKERUSER -- mkdir -p "$(dirname "$VENV_FLAG")" && runuser -u DOCKERUSER -- mkdir "$VENV_FLAG.lock" 2>/dev/null; then
+                # We got the lock, create venv if needed
+                if [ ! -d "$VENV_DIR" ]; then
+                    VENV_ERROR_FILE=$(mktemp /tmp/venv_error.XXXXXX)
+
+                    if PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- bash -c "uv venv --python-preference managed $PYTHON_VERSION_ARG '$VENV_DIR'" >/dev/null 2>"$VENV_ERROR_FILE"; then
+                        rm -f "$VENV_ERROR_FILE"
+                    else
+                        echo "Error: Failed to create Python venv" >&2
+                        if [ -s "$VENV_ERROR_FILE" ]; then
+                            echo "uv venv error output:" >&2
+                            cat "$VENV_ERROR_FILE" >&2
+                        fi
+                        rm -f "$VENV_ERROR_FILE"
+                    fi
+                fi
+
+                # Remove lock and create flag to indicate completion
+                runuser -u DOCKERUSER -- rmdir "$VENV_FLAG.lock"
+                runuser -u DOCKERUSER -- touch "$VENV_FLAG"
+            else
+                # Someone else is creating it, wait for completion flag
+                wait_count=0
+                while [ ! -f "$VENV_FLAG" ] && [ "$wait_count" -lt 60 ]; do
+                    sleep 0.5
+                    wait_count=$((wait_count + 1))
+                done
+
+                # If still no flag after timeout, something went wrong
+                if [ ! -f "$VENV_FLAG" ]; then
+                    echo "Warning: Timeout waiting for venv creation" >&2
+                fi
+            fi
+        fi
+
+        # Add activation to shell rc files only if venv was successfully created
+        if [ -f "$VENV_FLAG" ] && [ -d "$VENV_DIR" ]; then
             for shell_rc in /home/DOCKERUSER/.zshrc /home/DOCKERUSER/.bashrc; do
                 # Add .local/bin to PATH if not already there
                 if ! grep -q "PATH.*\.local/bin" "$shell_rc"; then
@@ -70,102 +554,40 @@ if [ -n "${CLAUDEBOX_PROJECT_NAME:-}" ]; then
                     echo "if [ -f $VENV_DIR/bin/activate ]; then source $VENV_DIR/bin/activate; fi" >> "$shell_rc"
                 fi
             done
-        else
-            # Check if venv exists but flag is missing (incomplete previous run)
-            if [ -d "$VENV_DIR" ] && [ ! -f "$VENV_FLAG" ]; then
-                # Try to acquire lock for recreating corrupted venv
-                if runuser -u DOCKERUSER -- mkdir -p "$(dirname "$VENV_FLAG")" && runuser -u DOCKERUSER -- mkdir "$VENV_FLAG.lock" 2>/dev/null; then
-                    # We got the lock, recreate venv with --clear
-                    PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv venv --python-preference managed --clear "$VENV_DIR" || true
-                    
-                    # Remove lock and create flag to indicate completion
-                    runuser -u DOCKERUSER -- rmdir "$VENV_FLAG.lock"
-                    runuser -u DOCKERUSER -- touch "$VENV_FLAG"
-                else
-                    # Someone else is fixing it, wait for completion
-                    local wait_count=0
-                    while [ ! -f "$VENV_FLAG" ] && [ $wait_count -lt 60 ]; do
-                        sleep 0.5
-                        ((wait_count++)) || true
-                    done
-                    
-                    if [ ! -f "$VENV_FLAG" ]; then
-                        echo "Warning: Timeout waiting for venv recreation" >&2
-                    fi
-                fi
-            else
-                # Normal case - try to create new venv
-                if runuser -u DOCKERUSER -- mkdir -p "$(dirname "$VENV_FLAG")" && runuser -u DOCKERUSER -- mkdir "$VENV_FLAG.lock" 2>/dev/null; then
-                    # We got the lock, create venv if needed
-                    if [ ! -d "$VENV_DIR" ]; then
-                        PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv venv --python-preference managed "$VENV_DIR" || true
-                    fi
-                    
-                    # Remove lock and create flag to indicate completion
-                    runuser -u DOCKERUSER -- rmdir "$VENV_FLAG.lock"
-                    runuser -u DOCKERUSER -- touch "$VENV_FLAG"
-                else
-                    # Someone else is creating it, wait for completion flag
-                    local wait_count=0
-                    while [ ! -f "$VENV_FLAG" ] && [ $wait_count -lt 60 ]; do
-                        sleep 0.5
-                        ((wait_count++)) || true
-                    done
-                    
-                    # If still no flag after timeout, something went wrong
-                    if [ ! -f "$VENV_FLAG" ]; then
-                        echo "Warning: Timeout waiting for venv creation" >&2
-                    fi
-                fi
-            fi
-            
-            # Add activation to shell rc files only if venv was successfully created
-            if [ -f "$VENV_FLAG" ] && [ -d "$VENV_DIR" ]; then
-                for shell_rc in /home/DOCKERUSER/.zshrc /home/DOCKERUSER/.bashrc; do
-                    # Add .local/bin to PATH if not already there
-                    if ! grep -q "PATH.*\.local/bin" "$shell_rc"; then
-                        echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$shell_rc"
-                    fi
-                    # Add venv activation if not already there
-                    if ! grep -q "source $VENV_DIR/bin/activate" "$shell_rc"; then
-                        echo "if [ -f $VENV_DIR/bin/activate ]; then source $VENV_DIR/bin/activate; fi" >> "$shell_rc"
-                    fi
-                done
-            fi
         fi
+    fi
 
-        # Check if Python profile is added and deploy Python dev tools if needed
-        if [ -f "$CONFIG_FILE" ] && grep -qE 'python|ml|datascience' "$CONFIG_FILE"; then
-            if [ ! -f "$PYDEV_FLAG" ] && [ -f "$VENV_FLAG" ] && [ -d "$VENV_DIR" ]; then
-                # Deploy Python dev tools based on profile
-                python_packages=""
-                
-                # Base Python profile packages
-                if grep -q 'python' "$CONFIG_FILE"; then
-                    python_packages="ipython black mypy pylint pytest ruff poetry pipenv"
-                fi
-                
-                # ML profile packages
-                if grep -q 'ml' "$CONFIG_FILE"; then
-                    python_packages="$python_packages torch transformers scikit-learn numpy pandas matplotlib"
-                fi
-                
-                # Data science profile packages
-                if grep -q 'datascience' "$CONFIG_FILE"; then
-                    python_packages="$python_packages jupyter notebook jupyterlab numpy pandas scipy matplotlib seaborn scikit-learn statsmodels plotly"
-                fi
-                
-                # Remove duplicates and install
-                if [ -n "$python_packages" ]; then
-                    PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- bash -c "
-                        source $VENV_DIR/bin/activate
-                        uv pip install $python_packages
-                    " || true
-                    
-                    # Create .pydev_flag to indicate Python dev tools are deployed
-                    if [ $? -eq 0 ]; then
-                        runuser -u DOCKERUSER -- touch "$PYDEV_FLAG"
-                    fi
+    # Check if Python profile is added and deploy Python dev tools if needed
+    if [ -f "$CONFIG_FILE" ] && grep -qE 'python|ml|datascience' "$CONFIG_FILE"; then
+        if [ ! -f "$PYDEV_FLAG" ] && [ -f "$VENV_FLAG" ] && [ -d "$VENV_DIR" ]; then
+            # Deploy Python dev tools based on profile
+            python_packages=""
+
+            # Base Python profile packages
+            if grep -q 'python' "$CONFIG_FILE"; then
+                python_packages="ipython black mypy pylint pytest ruff poetry pipenv"
+            fi
+
+            # ML profile packages
+            if grep -q 'ml' "$CONFIG_FILE"; then
+                python_packages="$python_packages torch transformers scikit-learn numpy pandas matplotlib"
+            fi
+
+            # Data science profile packages
+            if grep -q 'datascience' "$CONFIG_FILE"; then
+                python_packages="$python_packages jupyter notebook jupyterlab numpy pandas scipy matplotlib seaborn scikit-learn statsmodels plotly"
+            fi
+
+            # Remove duplicates and install
+            if [ -n "$python_packages" ]; then
+                PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- bash -c "
+                    source $VENV_DIR/bin/activate
+                    uv pip install $python_packages
+                " >/dev/null 2>&1 || true
+
+                # Create .pydev_flag to indicate Python dev tools are deployed
+                if [ $? -eq 0 ]; then
+                    runuser -u DOCKERUSER -- touch "$PYDEV_FLAG"
                 fi
             fi
         fi
@@ -177,11 +599,11 @@ if [ -n "${CLAUDEBOX_PROJECT_NAME:-}" ]; then
     PROFILES_INI="/home/DOCKERUSER/.claudebox/profiles.ini"
     TOOLING_FILE="/home/DOCKERUSER/.claudebox/tooling.md"
     CHECKSUM_FILE="/home/DOCKERUSER/.claudebox/.tooling_checksum"
-    
+
     if [ -f "$PROFILES_INI" ]; then
         # Calculate current checksum of profiles.ini
         CURRENT_CHECKSUM=$(sha256sum "$PROFILES_INI" | cut -d' ' -f1)
-        
+
         # Check if we need to regenerate
         NEED_REGENERATE=false
         if [ ! -f "$TOOLING_FILE" ]; then
@@ -200,7 +622,7 @@ if [ -n "${CLAUDEBOX_PROJECT_NAME:-}" ]; then
                 NEED_REGENERATE=true
             fi
         fi
-        
+
         if [ "$NEED_REGENERATE" = "true" ]; then
             # Generate the tooling file as the docker user
             if runuser -u DOCKERUSER -- generate-tools-readme >/dev/null 2>&1; then
@@ -252,10 +674,10 @@ else
             else
                 echo "Warning: NVM not found at $NVM_DIR" >&2
             fi
-            
+
             cd /workspace
             echo "Running update command..."
-            
+
             # Check for stale update lock (older than 5 minutes)
             lock_file="$HOME/.DOCKERUSER/.update.lock"
             if [[ -f "$lock_file" ]]; then
@@ -264,15 +686,18 @@ else
                     rm -f "$lock_file"
                 fi
             fi
-            
-            # Capture the output of claude update to check if already up to date
-            update_output=$(claude update 2>&1)
-            echo "$update_output"
-            
-            # Only run version check if an actual update occurred
-            if echo "$update_output" | grep -q "Successfully updated\|Installing update"; then
-                echo "Verifying update..."
-                claude --version
+
+            # Only update claude CLI if it is available
+            if command -v claude >/dev/null 2>&1; then
+                # Capture the output of claude update to check if already up to date
+                update_output=$(claude update 2>&1)
+                echo "$update_output"
+
+                # Only run version check if an actual update occurred
+                if echo "$update_output" | grep -q "Successfully updated\|Installing update"; then
+                    echo "Verifying update..."
+                    claude --version
+                fi
             fi
         '
     else
@@ -287,17 +712,17 @@ else
             else
                 echo "Warning: NVM not found at $NVM_DIR" >&2
             fi
-            
+
             # tooling.md generation is handled in root section above
-            
+
             # Ensure uv is in PATH
             export PATH="$HOME/.local/bin:$PATH"
-            
+
             # Activate Python venv if it exists
             if [ -f "$HOME/.claudebox/.venv/bin/activate" ]; then
                 source "$HOME/.claudebox/.venv/bin/activate"
             fi
-            
+
             # Create symlink from ~/.claude/commands to ~/.claudebox/commands
             # The ~/.claudebox folder is mounted from the host
             if [ -d "$HOME/.claudebox/commands" ]; then
@@ -305,12 +730,12 @@ else
                     ln -s "$HOME/.claudebox/commands" "$HOME/.claude/commands"
                 fi
             fi
-            
+
             cd /workspace
-            
+
             # Prepare MCP configuration arguments for native --mcp-config support
             mcp_config_args=()
-            
+
             # Add user MCP config if available (lower priority)
             if [[ -f "/tmp/user-mcp-config.json" ]]; then
                 mcp_config_args+=(--mcp-config /tmp/user-mcp-config.json)
@@ -318,7 +743,7 @@ else
                     printf "Loading user MCP servers\n" >&2
                 fi
             fi
-            
+
             # Add project MCP config if available (higher priority - processed last)
             if [[ -f "/tmp/project-mcp-config.json" ]]; then
                 mcp_config_args+=(--mcp-config /tmp/project-mcp-config.json)
@@ -326,7 +751,7 @@ else
                     printf "Loading project MCP servers\n" >&2
                 fi
             fi
-            
+
             # Check if .claude/projects exists and filter out -c/--continue if not
             if [[ ! -d "$HOME/.claude/projects" ]]; then
                 # Filter out -c and --continue flags
@@ -337,7 +762,7 @@ else
                         skip_next=false
                         continue
                     fi
-                    
+
                     case "$arg" in
                         -c|--continue)
                             # Skip this flag
@@ -347,11 +772,11 @@ else
                             ;;
                     esac
                 done
-                
+
                 # Update positional parameters
                 set -- "${filtered_args[@]}"
             fi
-            
+
             # If no arguments and stdin is a terminal, run claude in interactive mode
             if [[ "${CLAUDEBOX_WRAP_TMUX:-false}" == "true" ]]; then
                 if [[ $# -eq 0 ]] && [[ -t 0 ]]; then
@@ -368,7 +793,7 @@ else
                     claude "${mcp_config_args[@]}" "$@"
                 fi
             fi
-            
+
             # After claude exits, copy .claude.json if it was created
             if [[ -f "$HOME/.claude.json" ]] && [[ ! -f "$HOME/.claudebox/${CLAUDEBOX_SLOT_NAME}/.claude.json" ]]; then
                 cp "$HOME/.claude.json" "$HOME/.claudebox/${CLAUDEBOX_SLOT_NAME}/.claude.json"

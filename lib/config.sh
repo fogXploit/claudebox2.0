@@ -183,14 +183,212 @@ update_profile_section() {
 get_current_profiles() {
     local profiles_file="${PROJECT_PARENT_DIR:-$HOME/.claudebox/projects/$(generate_parent_folder_name "$PWD")}/profiles.ini"
     local current_profiles=()
-    
+
     if [[ -f "$profiles_file" ]]; then
         while IFS= read -r line; do
             [[ -n "$line" ]] && current_profiles+=("$line")
         done < <(read_profile_section "$profiles_file" "profiles")
     fi
-    
+
     printf '%s\n' "${current_profiles[@]}"
+}
+
+# Update or add a version for a specific profile
+update_profile_version() {
+    local profile_file="$1"
+    local profile_name="$2"
+    local version="$3"
+
+    # Create file if it doesn't exist
+    if [[ ! -f "$profile_file" ]]; then
+        touch "$profile_file"
+    fi
+
+    # Check if [versions] section exists
+    local has_versions_section=false
+    if grep -q "^\[versions\]" "$profile_file"; then
+        has_versions_section=true
+    fi
+
+    # Create temp file
+    local temp_file="${profile_file}.tmp"
+
+    if [[ "$has_versions_section" == "true" ]]; then
+        # Update existing version or add new one
+        local version_updated=false
+        local in_versions_section=false
+
+        while IFS= read -r line; do
+            if [[ "$line" == "[versions]" ]]; then
+                echo "$line"
+                in_versions_section=true
+            elif [[ "$line" =~ ^\[.*\]$ ]]; then
+                # Entering a new section
+                if [[ "$in_versions_section" == "true" ]] && [[ "$version_updated" == "false" ]]; then
+                    # Add version before new section
+                    echo "${profile_name}=${version}"
+                    version_updated=true
+                fi
+                in_versions_section=false
+                echo "$line"
+            elif [[ "$in_versions_section" == "true" ]] && [[ "$line" == "${profile_name}="* ]]; then
+                # Update existing version
+                echo "${profile_name}=${version}"
+                version_updated=true
+            else
+                echo "$line"
+            fi
+        done < "$profile_file" > "$temp_file"
+
+        # If version wasn't updated, append to end of file
+        if [[ "$version_updated" == "false" ]]; then
+            echo "${profile_name}=${version}" >> "$temp_file"
+        fi
+    else
+        # No [versions] section exists, create it
+        cat "$profile_file" > "$temp_file"
+        echo "" >> "$temp_file"
+        echo "[versions]" >> "$temp_file"
+        echo "${profile_name}=${version}" >> "$temp_file"
+    fi
+
+    mv "$temp_file" "$profile_file"
+}
+
+# Get version for a specific profile
+get_profile_version() {
+    local profile_file="$1"
+    local profile_name="$2"
+
+    if [[ ! -f "$profile_file" ]]; then
+        echo ""
+        return
+    fi
+
+    # Read version from [versions] section
+    read_config_value "$profile_file" "versions" "$profile_name"
+}
+
+# -------- Custom mounts from .claudebox.yml ----------------------------------
+# Parse .claudebox.yml and extract mounts
+# Returns mounts in format: host:container:mode (e.g., /home/user/data:/data:rw)
+parse_claudebox_yaml_mounts() {
+    local yaml_file="$1"
+
+    if [[ ! -f "$yaml_file" ]]; then
+        return
+    fi
+
+    # Simple YAML parser for mounts section
+    # Expected format:
+    # mounts:
+    #   - host: ~/data
+    #     container: /data
+    #     readonly: false
+    awk '
+        /^mounts:/ { in_mounts=1; next }
+        /^[^ ]/ && in_mounts { in_mounts=0 }
+        in_mounts && /^  - host:/ {
+            gsub(/^  - host: */, "")
+            gsub(/^["'\''"]|["'\''""]$/, "")  # Remove quotes
+            host=$0
+            getline
+            if (/^    container:/) {
+                gsub(/^    container: */, "")
+                gsub(/^["'\''"]|["'\''""]$/, "")
+                container=$0
+                readonly="false"
+                getline
+                if (/^    readonly:/) {
+                    gsub(/^    readonly: */, "")
+                    readonly=$0
+                }
+                # Expand ~ to home directory
+                gsub(/^~/, ENVIRON["HOME"], host)
+                mode = (readonly == "true" || readonly == "yes") ? "ro" : "rw"
+                print host ":" container ":" mode
+            }
+        }
+    ' "$yaml_file"
+}
+
+# Parse CLI mount arguments
+# Format: --mount ~/data:/data:rw or --mount ~/data:/data:ro
+# Returns mounts in same format as parse_claudebox_yaml_mounts
+parse_cli_mount() {
+    local mount_spec="$1"
+
+    # Split on colons
+    local host=""
+    local container=""
+    local mode="rw"
+
+    # Parse mount_spec (host:container[:mode])
+    if [[ "$mount_spec" == *:*:* ]]; then
+        host="${mount_spec%%:*}"
+        local rest="${mount_spec#*:}"
+        container="${rest%%:*}"
+        mode="${rest#*:}"
+    elif [[ "$mount_spec" == *:* ]]; then
+        host="${mount_spec%%:*}"
+        container="${mount_spec#*:}"
+        mode="rw"
+    else
+        # Invalid format
+        return 1
+    fi
+
+    # Expand ~ to home directory
+    host="${host/#\~/$HOME}"
+
+    # Validate mode
+    if [[ "$mode" != "rw" ]] && [[ "$mode" != "ro" ]]; then
+        printf "Invalid mount mode: %s (must be 'rw' or 'ro')\n" "$mode" >&2
+        return 1
+    fi
+
+    printf '%s:%s:%s\n' "$host" "$container" "$mode"
+}
+
+# Merge mounts from config file and CLI (CLI overrides config for same container path)
+# Arguments: config_mounts_array cli_mounts_array
+# Outputs merged mounts
+merge_mounts() {
+    local config_mounts=("$@")
+
+    # Use associative array simulation for Bash 3.2
+    # Store mounts by container path to handle overrides
+    local all_mounts=()
+    local mount_keys=()
+
+    # Add config mounts first
+    for mount in "${config_mounts[@]:-}"; do
+        if [[ -n "$mount" ]]; then
+            local container_path="${mount#*:}"
+            container_path="${container_path%%:*}"
+
+            # Check if this container path already exists
+            local found=false
+            local i=0
+            for key in "${mount_keys[@]:-}"; do
+                if [[ "$key" == "$container_path" ]]; then
+                    # Override existing mount
+                    all_mounts[i]="$mount"
+                    found=true
+                    break
+                fi
+                i=$((i + 1))
+            done
+
+            if [[ "$found" == "false" ]]; then
+                mount_keys+=("$container_path")
+                all_mounts+=("$mount")
+            fi
+        fi
+    done
+
+    # Output all mounts
+    printf '%s\n' "${all_mounts[@]:-}"
 }
 
 # -------- Profile installation functions for Docker builds -------------------
@@ -371,6 +569,8 @@ get_profile_ml() {
 
 export -f _read_ini get_profile_packages get_profile_description get_all_profile_names profile_exists expand_profile
 export -f get_profile_file_path read_config_value read_profile_section update_profile_section get_current_profiles
+export -f update_profile_version get_profile_version
+export -f parse_claudebox_yaml_mounts parse_cli_mount merge_mounts
 export -f get_profile_core get_profile_build_tools get_profile_shell get_profile_networking get_profile_c get_profile_openwrt
 export -f get_profile_rust get_profile_python get_profile_go get_profile_flutter get_profile_javascript get_profile_java get_profile_ruby
 export -f get_profile_php get_profile_database get_profile_devops get_profile_web get_profile_embedded get_profile_datascience
