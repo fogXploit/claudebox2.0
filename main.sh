@@ -265,11 +265,18 @@ main() {
     
     # Get the slot to use (might be empty)
     project_folder_name=$(get_project_folder_name "$PROJECT_DIR")
-    
+
     # Early exit if command needs Docker but no slots exist
     if [[ "$project_folder_name" == "NONE" ]] && [[ "$cmd_requirements" == "docker" ]]; then
-        show_no_slots_menu
-        exit 1
+        # Check if slots exist but are all running
+        if all_slots_running "$PROJECT_DIR"; then
+            show_all_slots_running_menu
+            exit 1
+        else
+            # No slots exist at all
+            show_no_slots_menu
+            exit 1
+        fi
     fi
     
     # Always set IMAGE_NAME based on parent folder

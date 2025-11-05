@@ -186,7 +186,7 @@ determine_next_start_container() {
         dir="$parent/$name"
         # Skip non-existent slots - they haven't been created yet
         [ -d "$dir" ] || continue
-        
+
         # Check if a container with this slot name is running
         if ! docker ps --format "{{.Names}}" | grep -q "^claudebox-.*-${name}$"; then
             echo "$name"
@@ -194,6 +194,37 @@ determine_next_start_container() {
         fi
     done
     return 1
+}
+
+# Check if all slots are currently running (returns 0 if true)
+all_slots_running() {
+    local path="$1" parent max idx name dir
+    parent=$(get_parent_dir "$path")
+    max=$(read_counter "$parent")
+
+    # If no slots created yet, return false
+    [ "$max" -eq 0 ] && return 1
+
+    local slot_count=0
+    local running_count=0
+
+    for ((idx=1; idx<=max; idx++)); do
+        name=$(generate_container_name "$path" "$idx")
+        dir="$parent/$name"
+
+        # Skip non-existent slots
+        [ -d "$dir" ] || continue
+
+        ((slot_count++))
+
+        # Check if this slot is running
+        if docker ps --format "{{.Names}}" | grep -q "^claudebox-.*-${name}$"; then
+            ((running_count++))
+        fi
+    done
+
+    # Return 0 (true) if we have slots and all are running
+    [ "$slot_count" -gt 0 ] && [ "$slot_count" -eq "$running_count" ]
 }
 
 # Find the first authenticated and inactive slot

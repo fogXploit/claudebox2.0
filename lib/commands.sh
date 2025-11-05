@@ -84,6 +84,23 @@ show_no_slots_menu() {
     exit 1
 }
 
+# Show menu when all slots are currently in use
+show_all_slots_running_menu() {
+    logo_small
+    echo
+    cecho "All slots are currently in use" "$YELLOW"
+    echo
+    printf "All your container slots are currently running.\n"
+    echo
+    printf "  ${CYAN}claudebox slots${NC}        - View all running slots\n"
+    printf "  ${CYAN}claudebox slot <n>${NC}    - Connect to specific slot\n"
+    printf "  ${CYAN}claudebox create${NC}       - Create an additional slot\n"
+    echo
+    printf "  ${DIM}Tip: Multiple slots let you run parallel Claude sessions.${NC}\n"
+    echo
+    exit 1
+}
+
 # Show menu when no ready slots are available
 show_no_ready_slots_menu() {
     logo_small
