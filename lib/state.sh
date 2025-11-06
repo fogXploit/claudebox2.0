@@ -30,7 +30,7 @@ update_symlink() {
     # Create new symlink
     if ln -s "$SCRIPT_PATH" "$LINK_TARGET"; then
         success "Symlink updated: $LINK_TARGET → $SCRIPT_PATH"
-        
+
         # Check if the directory is in PATH
         if [[ ":$PATH:" != *":$(dirname "$LINK_TARGET"):"* ]]; then
             echo ""
@@ -41,7 +41,7 @@ update_symlink() {
             echo ""
             info "Then reload your shell or run: source ~/.zshrc"
             echo ""
-            exit 0
+            return 0
         fi
     else
         warn "Could not create symlink at $LINK_TARGET"
