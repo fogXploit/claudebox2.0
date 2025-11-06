@@ -79,27 +79,10 @@ if [ -n "${CLAUDEBOX_PROJECT_NAME:-}" ]; then
         if has_profile "python" || has_profile "ml" || has_profile "datascience"; then
             PYTHON_VERSION=$(read_version "python")
             if [ -n "$PYTHON_VERSION" ]; then
-                VERSION_FLAG="$CLAUDEBOX_DIR/.python_${PYTHON_VERSION}_installed"
-
-                # Clean up old version flags if switching versions
-                for old_flag in "$CLAUDEBOX_DIR"/.python_*_installed; do
-                    if [ -f "$old_flag" ] && [ "$old_flag" != "$VERSION_FLAG" ]; then
-                        if [ "${VERBOSE:-false}" = "true" ]; then
-                            echo "Removing old Python version flag: $(basename "$old_flag")" >&2
-                            echo "Removing venv to recreate with new Python version" >&2
-                        fi
-                        rm -f "$old_flag"
-                        # Also remove venv so it gets recreated with new Python version
-                        rm -rf "$CLAUDEBOX_DIR/.venv"
-                        rm -f "$CLAUDEBOX_DIR/.venv_flag"
-                        rm -f "$CLAUDEBOX_DIR/.pydev_flag"
-                    fi
-                done
-
                 # Check if uv is available (try to find it explicitly)
                 if [ -x "/home/DOCKERUSER/.local/bin/uv" ] || command -v uv >/dev/null 2>&1; then
-                    # Only install if not already installed (check flag file)
-                    if [ ! -f "$VERSION_FLAG" ]; then
+                    # Check if the requested Python version is already installed
+                    if ! PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv python list 2>/dev/null | grep "$PYTHON_VERSION" | grep -v "download available" | grep -q .; then
                         if [ "${VERBOSE:-false}" = "true" ]; then
                             echo "Installing Python $PYTHON_VERSION via uv..." >&2
                         fi
@@ -108,8 +91,13 @@ if [ -n "${CLAUDEBOX_PROJECT_NAME:-}" ]; then
                         if PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv python install "$PYTHON_VERSION" 2>&1; then
                             # Verify installation succeeded - check for installed version (without <download available>)
                             if PATH="/home/DOCKERUSER/.local/bin:$PATH" runuser -u DOCKERUSER -- uv python list 2>/dev/null | grep "$PYTHON_VERSION" | grep -v "download available" | grep -q .; then
-                                # Installation verified - create flag file
-                                runuser -u DOCKERUSER -- touch "$VERSION_FLAG"
+                                # Installation verified - remove existing venv to force recreation with new version
+                                if [ "${VERBOSE:-false}" = "true" ]; then
+                                    echo "Python $PYTHON_VERSION installed successfully. Removing venv to recreate with new version." >&2
+                                fi
+                                rm -rf "$CLAUDEBOX_DIR/.venv"
+                                rm -f "$CLAUDEBOX_DIR/.venv_flag"
+                                rm -f "$CLAUDEBOX_DIR/.pydev_flag"
                             else
                                 echo "Error: Python $PYTHON_VERSION installation completed but version not found as installed" >&2
                                 echo "Installed Python versions:" >&2

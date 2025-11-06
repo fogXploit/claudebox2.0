@@ -219,6 +219,7 @@ run_claudebox_container() {
         -w /workspace
         -v "$PROJECT_DIR":/workspace
         -v "$PROJECT_PARENT_DIR:/home/$DOCKER_USER/.claudebox"
+        -v "$PROJECT_PARENT_DIR/.uv-python:/home/$DOCKER_USER/.local/share/uv/python"
     )
     
     # Ensure .claude directory exists

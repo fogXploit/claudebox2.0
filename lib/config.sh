@@ -101,6 +101,7 @@ get_profile_file_path() {
     local parent_name=$(generate_parent_folder_name "$PROJECT_DIR")
     local parent_dir="$HOME/.claudebox/projects/$parent_name"
     mkdir -p "$parent_dir"
+    mkdir -p "$parent_dir/.uv-python"
     echo "$parent_dir/profiles.ini"
 }
 
