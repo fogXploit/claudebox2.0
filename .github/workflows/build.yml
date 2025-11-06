@@ -46,7 +46,9 @@ jobs:
   release:
     needs: test-installer
     runs-on: ubuntu-latest
-    if: github.event_name == 'release'
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -54,12 +56,14 @@ jobs:
       - name: Build installer
         run: bash .builder/build.sh
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/claudebox.run
+            dist/claudebox-*.tar.gz
+          generate_release_notes: true
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./claudebox.run
-          asset_name: claudebox.run
-          asset_content_type: application/x-sh
