@@ -6,7 +6,7 @@
 # ==============================================================================
 
 # Version
-readonly CLAUDEBOX_VERSION="2.1.0"
+readonly CLAUDEBOX_VERSION="2.1.1"
 
 set -euo pipefail
 
