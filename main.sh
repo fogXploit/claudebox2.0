@@ -80,8 +80,10 @@ main() {
     local original_args=("$@")
 
     # Step 0: If running from installer, handle installation and exit early
-    # This must happen before any other operations (including symlink updates)
     if [[ "${CLAUDEBOX_INSTALLER_RUN:-}" == "true" ]]; then
+        # Create symlink first (critical for making 'claudebox' command available)
+        update_symlink
+
         # Check if this is first install or update
         if [[ -f "$HOME/.claudebox/.installed" ]]; then
             # Update - just show brief message
